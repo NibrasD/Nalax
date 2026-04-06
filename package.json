@@ -1,0 +1,42 @@
+{
+  "name": "Nalax",
+  "version": "1.0.0",
+  "description": "Nalax - Confidential Sealed-Bid Auction Protocol on Horizen Base L3",
+  "author": "Nalax",
+  "license": "MIT",
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "test:coverage": "hardhat coverage",
+    "test:gas": "REPORT_GAS=true hardhat test",
+    "node:local": "hardhat node",
+    "deploy:local": "hardhat ignition deploy ignition/modules/Nalax.ts --network localhost",
+    "deploy:testnet": "hardhat ignition deploy ignition/modules/Nalax.ts --network horizenTestnet",
+    "interact": "hardhat run scripts/interact.ts",
+    "verify:testnet": "hardhat verify --network horizenTestnet"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-chai-matchers": "^2.0.8",
+    "@nomicfoundation/hardhat-ethers": "^3.0.8",
+    "@nomicfoundation/hardhat-ignition": "^0.15.10",
+    "@nomicfoundation/hardhat-ignition-ethers": "^0.15.10",
+    "@nomicfoundation/hardhat-network-helpers": "^1.0.12",
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "@nomicfoundation/hardhat-verify": "^2.0.13",
+    "@openzeppelin/contracts": "^5.2.0",
+    "@typechain/ethers-v6": "^0.5.1",
+    "@typechain/hardhat": "^9.1.0",
+    "@types/chai": "^4.2.0",
+    "@types/mocha": ">=10.0.6",
+    "@types/node": ">=18.0.0",
+    "chai": "^4.2.0",
+    "dotenv": "^16.4.7",
+    "ethers": "^6.13.5",
+    "hardhat": "^2.22.19",
+    "hardhat-gas-reporter": "^2.2.2",
+    "solidity-coverage": "^0.8.14",
+    "ts-node": ">=8.0.0",
+    "typechain": "^8.3.0",
+    "typescript": ">=4.9.0"
+  }
+}
