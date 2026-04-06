@@ -1,4 +1,4 @@
-# Nalax Protocol (VeilBid)
+# Nalax Protocol
 
 > **The First Confidential Sealed-Bid Auction Protocol on Horizen Base L3**
 
@@ -6,7 +6,7 @@ Nalax is a privacy-preserving sealed-bid auction protocol where no one—not bid
 
 ## 🏗️ Architecture
 ┌─────────────────────┐
-│ VeilBidFactory │
+│ NalaxFactory │
 │ (Singleton) │
 └──────────┬──────────┘
 │ creates
@@ -14,14 +14,14 @@ Nalax is a privacy-preserving sealed-bid auction protocol where no one—not bid
 ▼ ▼ ▼
 ┌─────────────┐ ┌─────────────┐ ┌─────────────┐
 │ Auction #1 │ │ Auction #2 │ │ Auction #N │
-│ (VeilBid) │ │ (VeilBid) │ │ (VeilBid) │
+│ (Nalax) │ │ (Nalax) │ │ (Nalax) │
 └─────────────┘ └─────────────┘ └─────────────┘
 
 ## 🔒 Privacy Guarantees
 
 | Phase | What's Hidden | What's Visible |
 |-------|---------------|----------------|
-| Commit | Bid amounts, bidder identities, participant count | Commitment hashes (non-correlating) |
+| Commit | Bid amounts, bidder identities | Commitment hashes (non-correlating) |
 | Reveal | Losing bid amounts, non-revealed bids | Validity of revealed bids |
 | Settlement | Losing bid amounts | Winning bid, winner identity, final price |
 
@@ -39,7 +39,7 @@ Nalax is a privacy-preserving sealed-bid auction protocol where no one—not bid
 
 ```bash
 # Clone repository
-git clone https://github.com/your-org/nalax.git
+git clone https://github.com/NibrasD/nalax.git
 cd Nalax
 
 # Install dependencies
