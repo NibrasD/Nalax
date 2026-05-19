@@ -20,7 +20,7 @@ export async function uploadToIPFS(content: string, title?: string): Promise<str
 
   // Optional: add some pinata metadata
   const metadata = JSON.stringify({
-    name: `StellarScribe Article: ${title || 'Untitled'}`,
+    name: `Nalax Article: ${title || 'Untitled'}`,
   });
   data.append('pinataMetadata', metadata);
 

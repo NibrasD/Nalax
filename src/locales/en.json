@@ -79,7 +79,7 @@
     "hero": {
       "eyebrow": "Soroban Smart Contracts — Live on Testnet",
       "title": "Write. {{word}} Earn.",
-      "subtitle": "StellarScribe empowers creators to mint long-form content as NFTs, setup token-gated access, and earn directly via Stellar smart contracts. Complete ownership, verified on-chain.",
+      "subtitle": "Nalax empowers creators to mint long-form content as NFTs, setup token-gated access, and earn directly via Stellar smart contracts. Complete ownership, verified on-chain.",
       "start_writing": "Start Writing",
       "explore_articles": "Explore Articles",
       "content_nft": "Content NFT #247",
@@ -112,7 +112,7 @@
       }
     },
     "featured": {
-      "eyebrow": "Latest on StellarScribe",
+      "eyebrow": "Latest on Nalax",
       "title": "Featured Content",
       "view_all": "View All"
     },
@@ -161,7 +161,7 @@
     "soroban_docs": "Soroban Docs",
     "freighter_wallet": "Freighter Wallet",
     "source_code": "Source Code",
-    "copyright": "© 2025 StellarScribe — Built on Stellar",
+    "copyright": "© 2025 Nalax — Built on Stellar",
     "smart_contracts": "Soroban Smart Contracts",
     "wallet": "Freighter Wallet"
   },
@@ -173,7 +173,7 @@
   },
   "home_v2": {
     "hero_headline": "Own your content. Earn directly.",
-    "hero_sub": "StellarScribe is the first decentralized publishing platform for the Arabic community — write, mint NFTs, join specialized channels, and earn XLM with no middleman.",
+    "hero_sub": "Nalax is the first decentralized publishing platform for the Arabic community — write, mint NFTs, join specialized channels, and earn XLM with no middleman.",
     "cta_write": "Start Writing Now",
     "cta_channels": "Explore Channels",
     "cta_explore": "Browse Articles",

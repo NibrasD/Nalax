@@ -54,7 +54,7 @@ export function Footer() {
                 <Gem className="w-4.5 h-4.5 text-white" />
               </div>
               <span className="text-[20px] font-serif tracking-[-0.5px]">
-                Stellar<span className="text-gradient">Scribe</span>
+                Na<span className="text-gradient">lax</span>
               </span>
             </Link>
 
@@ -142,7 +142,7 @@ export function Footer() {
         {/* ── Bottom bar ────────────────────────────────────────── */}
         <div className="pt-6 border-t border-[var(--color-border)] flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="text-[11px] font-mono text-[var(--color-text-muted)] uppercase tracking-[1px]">
-            © 2025 StellarScribe — Built on Stellar
+            © 2025 Nalax — Built on Stellar
           </div>
 
           <div className="flex items-center gap-5">

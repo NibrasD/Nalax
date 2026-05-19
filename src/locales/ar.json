@@ -79,7 +79,7 @@
     "hero": {
       "eyebrow": "عقود Soroban الذكية — متاحة على شبكة الاختبار",
       "title": "اكتب. {{word}} اربح.",
-      "subtitle": "تمكن StellarScribe المبدعين من سك المحتوى الطويل كـ NFTs، وإعداد وصول مشروط بالرموز، والكسب مباشرة عبر عقود Stellar الذكية. ملكية كاملة، موثقة على السلسلة.",
+      "subtitle": "تمكن Nalax المبدعين من سك المحتوى الطويل كـ NFTs، وإعداد وصول مشروط بالرموز، والكسب مباشرة عبر عقود Stellar الذكية. ملكية كاملة، موثقة على السلسلة.",
       "start_writing": "ابدأ الكتابة",
       "explore_articles": "استكشف المقالات",
       "content_nft": "NFT المحتوى #247",
@@ -112,7 +112,7 @@
       }
     },
     "featured": {
-      "eyebrow": "الأحدث على StellarScribe",
+      "eyebrow": "الأحدث على Nalax",
       "title": "المحتوى المميز",
       "view_all": "عرض الكل"
     },
@@ -161,7 +161,7 @@
     "soroban_docs": "وثائق Soroban",
     "freighter_wallet": "محفظة Freighter",
     "source_code": "كود المصدر",
-    "copyright": "© 2025 StellarScribe — بني على Stellar",
+    "copyright": "© 2025 Nalax — بني على Stellar",
     "smart_contracts": "عقود Soroban الذكية",
     "wallet": "محفظة Freighter"
   },
@@ -173,7 +173,7 @@
   },
   "home_v2": {
     "hero_headline": "امتلك محتواك، اكسب مباشرةً.",
-    "hero_sub": "StellarScribe منصة النشر اللامركزي الأولى للمجتمع العربي — اكتب، سكّ محتواك NFT، شارك في قنوات متخصصة، واكسب XLM مباشرة بدون وسيط.",
+    "hero_sub": "Nalax منصة النشر اللامركزي الأولى للمجتمع العربي — اكتب، سكّ محتواك NFT، شارك في قنوات متخصصة، واكسب XLM مباشرة بدون وسيط.",
     "cta_write": "ابدأ الكتابة الآن",
     "cta_channels": "استكشف القنوات",
     "cta_explore": "استعرض المقالات",

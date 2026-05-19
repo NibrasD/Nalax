@@ -1,5 +1,5 @@
 /**
- * Typed contract bindings for the StellarScribe Soroban smart contract.
+ * Typed contract bindings for the Nalax Soroban smart contract.
  * These types mirror the Rust contract data structures.
  */
 

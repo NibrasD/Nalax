@@ -81,7 +81,7 @@ export const useAppStore = create<AppState>()(
       clearAllLocalData: () => set({ articles: [], registeredAuthor: null }),
     }),
     {
-      name: 'stellarscribe-storage',
+      name: 'nalax-storage',
     }
   )
 );

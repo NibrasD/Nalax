@@ -41,38 +41,43 @@ export function Navbar() {
 
   return (
     <>
-      <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+      <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
         scrolled 
-          ? 'bg-[var(--color-bg-base)]/95 backdrop-blur-xl border-b border-[var(--color-border)]' 
+          ? 'bg-[var(--color-bg-base)]/90 backdrop-blur-2xl border-b border-[var(--color-border)]' 
           : 'bg-transparent'
       }`}>
-        <div className="max-w-7xl mx-auto flex items-center justify-between py-4 px-6">
+        <div className="max-w-7xl mx-auto flex items-center justify-between py-3 px-6">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2.5 group">
             <div className="w-9 h-9 flex items-center justify-center relative">
-              <div className="absolute inset-0 bg-primary/20 rounded-lg blur-md group-hover:bg-primary/30 transition-all" />
-              <Gem className="w-5 h-5 text-primary group-hover:text-accent transition-colors relative z-10" />
+              <div className="absolute inset-0 rounded-xl"
+                style={{ background: 'linear-gradient(135deg, rgba(91,94,255,0.4), rgba(15,244,198,0.3))', filter: 'blur(8px)' }} />
+              <div className="relative z-10 w-9 h-9 rounded-xl flex items-center justify-center"
+                style={{ background: 'linear-gradient(135deg, #5B5EFF, #0FF4C6)', boxShadow: '0 0 20px rgba(91,94,255,0.5)' }}>
+                <Gem className="w-4.5 h-4.5 text-white" />
+              </div>
             </div>
             <span className="text-[22px] font-serif tracking-[-0.5px] text-white">
-              Stellar<span className="text-gradient">Scribe</span>
+              Na<span className="text-gradient">lax</span>
             </span>
           </Link>
           
           {/* Desktop Nav */}
-          <div className="hidden md:flex items-center gap-3">
+          <div className="hidden md:flex items-center gap-1 p-1 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]/60 backdrop-blur-sm">
             {NAV_LINKS.map(({ to, label, icon: Icon }) => {
               const isActive = location.pathname === to;
               return (
                 <Link
                   key={to}
                   to={to}
-                  className={`px-5 py-2.5 text-[14px] font-semibold tracking-[0.5px] transition-all duration-300 rounded-full flex items-center gap-2 border ${
+                  className={`px-4 py-2 text-[13px] font-semibold transition-all duration-200 rounded-xl flex items-center gap-1.5 ${
                     isActive
-                      ? 'text-white bg-primary border-primary shadow-[0_0_15px_rgba(108,58,255,0.4)]'
-                      : 'text-[var(--color-text-secondary)] border-transparent hover:text-[var(--color-text-main)] hover:bg-[var(--color-surface-hover)] hover:border-[var(--color-border)]'
+                      ? 'text-white shadow-[0_0_20px_rgba(91,94,255,0.4)]'
+                      : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-main)] hover:bg-[var(--color-surface-hover)]'
                   }`}
+                  style={isActive ? { background: 'linear-gradient(135deg, #5B5EFF, #4446D6)' } : {}}
                 >
-                  <Icon className="w-4 h-4" />
+                  <Icon className="w-3.5 h-3.5" />
                   {label}
                 </Link>
               );
@@ -115,7 +120,8 @@ export function Navbar() {
                 <button 
                   onClick={connect}
                   disabled={isConnecting}
-                  className="flex items-center gap-2 px-5 py-2.5 bg-white text-black font-semibold text-[11px] font-mono uppercase tracking-[1.5px] hover:bg-gray-100 transition-all disabled:opacity-50 cursor-pointer rounded-sm"
+                  className="flex items-center gap-2 px-5 py-2.5 font-semibold text-[11px] font-mono uppercase tracking-[1.5px] transition-all disabled:opacity-50 cursor-pointer rounded-xl text-white"
+                  style={{ background: 'linear-gradient(135deg, #5B5EFF, #4446D6)', boxShadow: '0 4px 20px rgba(91,94,255,0.4)' }}
                 >
                   <Wallet className="w-3.5 h-3.5" />
                   {isConnecting ? t('nav.connecting', 'Connecting...') : t('nav.connect_wallet')}

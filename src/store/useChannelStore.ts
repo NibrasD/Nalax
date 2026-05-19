@@ -212,7 +212,7 @@ const SEED_POSTS: ChannelPost[] = [
     channelId: 'nft-artists',
     author: { name: 'فاطمة أحمد', address: 'GXYZ2...TEST2', verified: false },
     title: 'عملي الجديد: "جذور في الرمال" 🎨',
-    text: 'أنهيت للتو لوحتي الرقمية الجديدة المستوحاة من التراث العربي. سأسكّها كـ NFT حصري على StellarScribe الأسبوع القادم!',
+    text: 'أنهيت للتو لوحتي الرقمية الجديدة المستوحاة من التراث العربي. سأسكّها كـ NFT حصري على Nalax الأسبوع القادم!',
     timestamp: 'منذ يوم',
     createdAt: Date.now() - 1000 * 60 * 60 * 24,
     likes: 178, replies: 32, recasts: 24,
@@ -290,6 +290,6 @@ export const useChannelStore = create<ChannelState>()(
       getPostsByChannel: (channelId) =>
         get().posts.filter((p) => p.channelId === channelId),
     }),
-    { name: 'stellarscribe-channels' }
+    { name: 'nalax-channels' }
   )
 );
