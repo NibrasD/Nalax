@@ -1,16 +1,11 @@
 services:
-  - type: web
+  - type: static
     name: stellarscribe-frontend
-    env: static
     buildCommand: npm install --no-audit --no-fund --legacy-peer-deps && npm run build
+    staticPublishPath: dist
     envVars:
       - key: NODE_VERSION
         value: 20
-      - key: NPM_CONFIG_AUDIT
-        value: "false"
-      - key: NPM_CONFIG_FUND
-        value: "false"
-    staticPublishPath: dist
     routes:
       - type: rewrite
         source: /*
