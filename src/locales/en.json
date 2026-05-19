@@ -1,0 +1,108 @@
+{
+  "nav": {
+    "home": "Home",
+    "feed": "Feed",
+    "explore": "Explore",
+    "write": "Write",
+    "dashboard": "Dashboard",
+    "connect_wallet": "Connect Wallet",
+    "disconnect": "Disconnect",
+    "connecting": "Connecting..."
+  },
+  "home": {
+    "hero": {
+      "eyebrow": "Soroban Smart Contracts — Live on Testnet",
+      "title": "Write. {{word}} Earn.",
+      "subtitle": "StellarScribe empowers creators to mint long-form content as NFTs, setup token-gated access, and earn directly via Stellar smart contracts. Complete ownership, verified on-chain.",
+      "start_writing": "Start Writing",
+      "explore_articles": "Explore Articles",
+      "content_nft": "Content NFT #247",
+      "minting_via": "Minting via Soroban",
+      "author": "Author",
+      "hash": "Hash",
+      "status": "Status",
+      "minted": "Minted",
+      "token_gated": "Token-Gated",
+      "access_fee": "5 XLM Access",
+      "tip": "+12 XLM tip"
+    },
+    "how_it_works": {
+      "eyebrow": "How it works",
+      "title": "Publish in Three Steps",
+      "step": "Step",
+      "steps": {
+        "01": {
+          "title": "Connect Wallet",
+          "description": "Link your Freighter wallet and register your on-chain author identity with a name and bio."
+        },
+        "02": {
+          "title": "Write & Mint",
+          "description": "Create your article in our Markdown editor. On publish, a Content NFT is minted via Soroban."
+        },
+        "03": {
+          "title": "Earn & Grow",
+          "description": "Receive tips and token-gated access payments directly to your wallet. Zero platform fees."
+        }
+      }
+    },
+    "featured": {
+      "eyebrow": "Latest on StellarScribe",
+      "title": "Featured Content",
+      "view_all": "View All"
+    },
+    "cta": {
+      "title": "Ready to Own Your Content?",
+      "subtitle": "Join the next generation of writers who publish, tokenize, and monetize their work on the Stellar blockchain.",
+      "start_writing": "Start Writing"
+    }
+  },
+  "explore": {
+    "eyebrow": "Discover",
+    "title": "Explore the Network",
+    "search_placeholder": "Search articles, authors, tags...",
+    "filters": {
+      "all": "All",
+      "free": "Free",
+      "gated": "Token-Gated",
+      "crowdfund": "Crowdfunding"
+    },
+    "results": "{{count}} article",
+    "results_plural": "{{count}} articles",
+    "clear_filters": "Clear filters ×",
+    "loading": {
+      "title": "Loading from Stellar Network...",
+      "subtitle": "Fetching on-chain content via Soroban"
+    },
+    "no_results": {
+      "title": "No articles found",
+      "no_results_for": "No results for \"{{search}}\"",
+      "no_match": "No articles match this filter"
+    }
+  },
+  "write": {
+    "wallet_required": {
+      "title": "Wallet Required",
+      "description": "Connect your Freighter wallet to publish content on the Stellar network.",
+      "identity": "Your on-chain identity is linked to your wallet"
+    }
+  },
+  "footer": {
+    "description": "The decentralized content platform built on Stellar. Publish, tokenize, and monetize your writing using Soroban smart contracts.",
+    "testnet": "Soroban Testnet",
+    "platform": "Platform",
+    "ecosystem": "Ecosystem",
+    "stellar_network": "Stellar Network",
+    "soroban_docs": "Soroban Docs",
+    "freighter_wallet": "Freighter Wallet",
+    "source_code": "Source Code",
+    "copyright": "© 2025 StellarScribe — Built on Stellar",
+    "smart_contracts": "Soroban Smart Contracts",
+    "wallet": "Freighter Wallet"
+  },
+  "words": {
+    "publish": "Publish.",
+    "tokenize": "Tokenize.",
+    "monetize": "Monetize.",
+    "own": "Own."
+  }
+}

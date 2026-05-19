@@ -1,0 +1,108 @@
+{
+  "nav": {
+    "home": "الرئيسية",
+    "feed": "الخلاصة",
+    "explore": "استكشف",
+    "write": "اكتب",
+    "dashboard": "لوحة التحكم",
+    "connect_wallet": "ربط المحفظة",
+    "disconnect": "قطع الاتصال",
+    "connecting": "جاري الاتصال..."
+  },
+  "home": {
+    "hero": {
+      "eyebrow": "عقود Soroban الذكية — متاحة على شبكة الاختبار",
+      "title": "اكتب. {{word}} اربح.",
+      "subtitle": "تمكن StellarScribe المبدعين من سك المحتوى الطويل كـ NFTs، وإعداد وصول مشروط بالرموز، والكسب مباشرة عبر عقود Stellar الذكية. ملكية كاملة، موثقة على السلسلة.",
+      "start_writing": "ابدأ الكتابة",
+      "explore_articles": "استكشف المقالات",
+      "content_nft": "NFT المحتوى #247",
+      "minting_via": "يتم السك عبر Soroban",
+      "author": "الكاتب",
+      "hash": "البصمة (Hash)",
+      "status": "الحالة",
+      "minted": "تم السك",
+      "token_gated": "وصول مشروط",
+      "access_fee": "دخول بـ 5 XLM",
+      "tip": "+12 XLM دعم"
+    },
+    "how_it_works": {
+      "eyebrow": "كيف يعمل",
+      "title": "انشر في ثلاث خطوات",
+      "step": "الخطوة",
+      "steps": {
+        "01": {
+          "title": "ربط المحفظة",
+          "description": "اربط محفظة Freighter الخاصة بك وسجل هويتك ككاتب على السلسلة مع الاسم والنبذة الشخصية."
+        },
+        "02": {
+          "title": "الكتابة والسك",
+          "description": "أنشئ مقالك في محرر Markdown الخاص بنا. عند النشر، يتم سك NFT للمحتوى عبر Soroban."
+        },
+        "03": {
+          "title": "الربح والنمو",
+          "description": "استلم الدعم ومدفوعات الوصول المشروط مباشرة إلى محفظتك. رسوم المنصة صفر."
+        }
+      }
+    },
+    "featured": {
+      "eyebrow": "الأحدث على StellarScribe",
+      "title": "المحتوى المميز",
+      "view_all": "عرض الكل"
+    },
+    "cta": {
+      "title": "هل أنت مستعد لامتلاك محتواك؟",
+      "subtitle": "انضم إلى الجيل القادم من الكتاب الذين ينشرون، ويرمزون، ويحققون الدخل من عملهم على بلوكشين Stellar.",
+      "start_writing": "ابدأ الكتابة"
+    }
+  },
+  "explore": {
+    "eyebrow": "اكتشف",
+    "title": "استكشف الشبكة",
+    "search_placeholder": "ابحث عن المقالات، الكتاب، الأوسمة...",
+    "filters": {
+      "all": "الكل",
+      "free": "مجاني",
+      "gated": "وصول مشروط",
+      "crowdfund": "تمويل جماعي"
+    },
+    "results": "{{count}} مقال",
+    "results_plural": "{{count}} مقالات",
+    "clear_filters": "مسح الفلاتر ×",
+    "loading": {
+      "title": "جاري التحميل من شبكة Stellar...",
+      "subtitle": "جلب المحتوى من السلسلة عبر Soroban"
+    },
+    "no_results": {
+      "title": "لم يتم العثور على مقالات",
+      "no_results_for": "لا توجد نتائج لـ \"{{search}}\"",
+      "no_match": "لا توجد مقالات تطابق هذا الفلتر"
+    }
+  },
+  "write": {
+    "wallet_required": {
+      "title": "المحفظة مطلوبة",
+      "description": "قم بربط محفظة Freighter الخاصة بك لنشر المحتوى على شبكة Stellar.",
+      "identity": "هويتك على السلسلة مرتبطة بمحفظتك"
+    }
+  },
+  "footer": {
+    "description": "منصة المحتوى اللامركزية المبنية على Stellar. انشر، ورمز، وحقق الربح من كتاباتك باستخدام عقود Soroban الذكية.",
+    "testnet": "شبكة اختبار Soroban",
+    "platform": "المنصة",
+    "ecosystem": "النظام البيئي",
+    "stellar_network": "شبكة Stellar",
+    "soroban_docs": "وثائق Soroban",
+    "freighter_wallet": "محفظة Freighter",
+    "source_code": "كود المصدر",
+    "copyright": "© 2025 StellarScribe — بني على Stellar",
+    "smart_contracts": "عقود Soroban الذكية",
+    "wallet": "محفظة Freighter"
+  },
+  "words": {
+    "publish": "انشر.",
+    "tokenize": "رمز.",
+    "monetize": "اربح.",
+    "own": "تملك."
+  }
+}

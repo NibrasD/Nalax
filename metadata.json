@@ -1,0 +1,6 @@
+{
+  "name": "StellarScribe",
+  "description": "Soroban-based publishing platform for writers to mint long-form content, crowdfund, and store metadata on Arweave.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
