@@ -2,7 +2,7 @@ services:
   - type: web
     name: stellarscribe-frontend
     env: static
-    buildCommand: npm install --ignore-scripts --legacy-peer-deps && npm run build
+    buildCommand: npm install --no-audit --no-fund --legacy-peer-deps && npm run build
     envVars:
       - key: NODE_VERSION
         value: 20
