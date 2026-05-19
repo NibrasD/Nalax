@@ -42,21 +42,37 @@
 
 /* ── Light theme ──────────────────────────────────────────────── */
 :root[data-theme="light"] {
-  --color-bg-base:       #F2F2FA;
+  /* خلفيات دافئة بيضاء نظيفة */
+  --color-bg-base:       #FAFAFA;
   --color-bg-elevated:   #FFFFFF;
-  --color-surface:       #E6E6F2;
-  --color-surface-hover: #DADAEC;
-  --color-border:        rgba(0,0,0,0.08);
-  --color-border-bright: rgba(0,0,0,0.15);
-  --color-primary:       #4446D6;
-  --color-primary-soft:  #3234B0;
-  --color-primary-glow:  rgba(68,70,214,0.15);
-  --color-accent:        #00C49A;
-  --color-accent-glow:   rgba(0,196,154,0.15);
-  --color-text-main:     #0D0D1A;
-  --color-text-secondary:#28283C;
-  --color-text-dim:      #4C4C68;
-  --color-text-muted:    #78789A;
+  --color-surface:       #F4F4F6;
+  --color-surface-hover: #EDEDF0;
+  --color-surface-active:#E5E5EA;
+  --color-border:        rgba(0,0,0,0.07);
+  --color-border-bright: rgba(0,0,0,0.12);
+
+  /* ألوان العلامة التجارية */
+  --color-primary:       #4F52E8;
+  --color-primary-soft:  #3B3DC8;
+  --color-primary-glow:  rgba(79,82,232,0.18);
+  --color-accent:        #00A884;
+  --color-accent-soft:   rgba(0,168,132,0.15);
+  --color-accent-glow:   rgba(0,168,132,0.18);
+  --color-rose:          #E84479;
+  --color-rose-glow:     rgba(232,68,121,0.18);
+  --color-amber:         #D97706;
+  --color-sky:           #0284C7;
+
+  /* نصوص واضحة ومريحة */
+  --color-text-main:      #111118;
+  --color-text-secondary: #3A3A4C;
+  --color-text-dim:       #6B6B82;
+  --color-text-muted:     #9494A8;
+
+  --color-success: #00A884;
+  --color-error:   #DC2626;
+  --color-warning: #D97706;
+  --color-info:    #0284C7;
 }
 
 /* ── Base ─────────────────────────────────────────────────────── */
@@ -158,17 +174,22 @@
     border: 1px solid var(--color-border);
     border-radius: 16px;
   }
+  :root[data-theme="light"] .glass-panel {
+    background: #FFFFFF;
+    border-color: rgba(0,0,0,0.06);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+  }
   .glass-panel-elevated {
     background: var(--color-bg-elevated);
     border: 1px solid var(--color-border);
     border-radius: 16px;
-    box-shadow: 0 16px 48px rgba(0,0,0,.6);
+    box-shadow: 0 4px 24px rgba(0,0,0,0.06), 0 1px 4px rgba(0,0,0,0.04);
   }
   .glass-glow {
-    background: rgba(91,94,255,0.04);
-    border: 1px solid rgba(91,94,255,0.2);
+    background: rgba(79,82,232,0.04);
+    border: 1px solid rgba(79,82,232,0.15);
     border-radius: 16px;
-    box-shadow: 0 0 32px rgba(91,94,255,0.12), inset 0 1px 0 rgba(255,255,255,.04);
+    box-shadow: 0 0 24px rgba(79,82,232,0.08);
   }
 
   /* Hero card */
@@ -179,6 +200,11 @@
     border-radius: 24px;
     box-shadow: 0 0 80px rgba(91,94,255,.15), 0 40px 80px rgba(0,0,0,.5);
   }
+  :root[data-theme="light"] .hero-card {
+    background: #FFFFFF;
+    border-color: rgba(79,82,232,.15);
+    box-shadow: 0 4px 32px rgba(79,82,232,.1), 0 8px 16px rgba(0,0,0,.05);
+  }
 
   /* Feature cards */
   .feature-card {
@@ -188,22 +214,32 @@
     transition: all .3s ease;
   }
   .feature-card:hover {
-    border-color: rgba(91,94,255,.35);
-    box-shadow: 0 0 40px rgba(91,94,255,.1), 0 20px 48px rgba(0,0,0,.35);
+    border-color: rgba(79,82,232,.25);
+    box-shadow: 0 4px 24px rgba(79,82,232,.08), 0 8px 32px rgba(0,0,0,.06);
     transform: translateY(-4px);
+  }
+  :root[data-theme="light"] .feature-card {
+    background: #FFFFFF;
+    border-color: rgba(0,0,0,0.06);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+  :root[data-theme="light"] .feature-card:hover {
+    border-color: rgba(79,82,232,.2);
+    box-shadow: 0 4px 20px rgba(79,82,232,.1), 0 8px 24px rgba(0,0,0,.06);
   }
 
   /* Channel preview card */
   .channel-card-preview {
-    background: linear-gradient(135deg, var(--color-surface) 0%, rgba(91,94,255,.04) 100%);
+    background: var(--color-bg-elevated);
     border: 1px solid var(--color-border);
     border-radius: 16px;
     transition: all .25s ease;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.04);
   }
   .channel-card-preview:hover {
-    border-color: rgba(91,94,255,.3);
+    border-color: rgba(79,82,232,.2);
     transform: translateY(-3px);
-    box-shadow: 0 8px 32px rgba(91,94,255,.08);
+    box-shadow: 0 4px 20px rgba(79,82,232,.08);
   }
 
   /* Text gradients */
@@ -221,6 +257,22 @@
   }
   .text-gradient-animated {
     background: linear-gradient(135deg, #5B5EFF, #0FF4C6, #FF5CAA, #5B5EFF);
+    background-size: 300% 300%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: gradientShift 5s ease infinite;
+  }
+
+  /* في الوضع النهاري، نستخدم gradients أكثر إشباعاً */
+  :root[data-theme="light"] .text-gradient {
+    background: linear-gradient(135deg, #4F52E8, #00A884);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  :root[data-theme="light"] .text-gradient-animated {
+    background: linear-gradient(135deg, #4F52E8, #00A884, #E84479, #4F52E8);
     background-size: 300% 300%;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
@@ -247,6 +299,14 @@
     box-shadow: 0 8px 32px rgba(91,94,255,0.55);
     transform: translateY(-2px);
   }
+  :root[data-theme="light"] .btn-primary {
+    background: linear-gradient(135deg, #4F52E8, #3B3DC8);
+    box-shadow: 0 4px 16px rgba(79,82,232,0.35);
+  }
+  :root[data-theme="light"] .btn-primary:hover {
+    box-shadow: 0 8px 24px rgba(79,82,232,0.5);
+  }
+
   .btn-outline {
     @apply bg-transparent text-text-main font-semibold py-[13px] px-[26px] uppercase text-[11px] tracking-[1.5px] cursor-pointer;
     border: 1px solid rgba(91,94,255,0.3);
@@ -258,6 +318,15 @@
     background: rgba(91,94,255,.08);
     transform: translateY(-2px);
   }
+  :root[data-theme="light"] .btn-outline {
+    border-color: rgba(79,82,232,0.25);
+    color: #111118;
+  }
+  :root[data-theme="light"] .btn-outline:hover {
+    border-color: rgba(79,82,232,0.5);
+    background: rgba(79,82,232,0.05);
+  }
+
   .btn-accent {
     @apply font-bold py-[13px] px-[26px] uppercase text-[11px] tracking-[1.5px] border-none cursor-pointer;
     background: linear-gradient(135deg, #0FF4C6, #00C49A);
@@ -270,6 +339,15 @@
     box-shadow: 0 8px 32px rgba(15,244,198,0.5);
     transform: translateY(-2px);
   }
+  :root[data-theme="light"] .btn-accent {
+    background: linear-gradient(135deg, #00A884, #007A60);
+    color: #FFFFFF;
+    box-shadow: 0 4px 16px rgba(0,168,132,0.3);
+  }
+  :root[data-theme="light"] .btn-accent:hover {
+    box-shadow: 0 8px 24px rgba(0,168,132,0.45);
+  }
+
   .btn-ghost {
     @apply bg-transparent font-semibold py-[11px] px-[20px] text-[12px] tracking-[1px] cursor-pointer;
     border: 1px solid var(--color-border);
@@ -281,6 +359,10 @@
     background: rgba(91,94,255,0.06);
     color: var(--color-text-main);
     border-color: rgba(91,94,255,0.3);
+  }
+  :root[data-theme="light"] .btn-ghost:hover {
+    background: rgba(79,82,232,0.05);
+    border-color: rgba(79,82,232,0.2);
   }
 
   /* Badge */
@@ -306,10 +388,30 @@
     color: #FF7EC0;
   }
 
+  /* في الوضع النهاري، ألوان الـ badge أكثر إشباعاً */
+  :root[data-theme="light"] .badge-primary {
+    border-color: rgba(79,82,232,.25);
+    background: rgba(79,82,232,.07);
+    color: #4F52E8;
+  }
+  :root[data-theme="light"] .badge-accent {
+    border-color: rgba(0,168,132,.25);
+    background: rgba(0,168,132,.07);
+    color: #007A60;
+  }
+  :root[data-theme="light"] .badge-rose {
+    border-color: rgba(232,68,121,.25);
+    background: rgba(232,68,121,.07);
+    color: #C0305A;
+  }
+
   /* Typography */
   .eyebrow {
     @apply font-mono text-[10px] uppercase tracking-[2.5px] mb-3 flex items-center gap-2 font-medium;
     color: #0FF4C6;
+  }
+  :root[data-theme="light"] .eyebrow {
+    color: #007A60;
   }
   .label-sm {
     @apply font-mono text-[9px] uppercase tracking-[1.5px] font-medium;
@@ -385,10 +487,20 @@
       linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px);
     background-size: 40px 40px;
   }
+  :root[data-theme="light"] .grid-pattern {
+    background-image:
+      linear-gradient(rgba(0,0,0,.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,0,0,.04) 1px, transparent 1px);
+    background-size: 40px 40px;
+  }
 
   /* Dot pattern */
   .dot-pattern {
     background-image: radial-gradient(rgba(255,255,255,.08) 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+  :root[data-theme="light"] .dot-pattern {
+    background-image: radial-gradient(rgba(0,0,0,.07) 1px, transparent 1px);
     background-size: 24px 24px;
   }
 }
