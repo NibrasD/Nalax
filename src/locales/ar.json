@@ -170,5 +170,24 @@
     "tokenize": "رمز.",
     "monetize": "اربح.",
     "own": "تملك."
+  },
+  "home_v2": {
+    "hero_headline": "امتلك محتواك، اكسب مباشرةً.",
+    "hero_sub": "StellarScribe منصة النشر اللامركزي الأولى للمجتمع العربي — اكتب، سكّ محتواك NFT، شارك في قنوات متخصصة، واكسب XLM مباشرة بدون وسيط.",
+    "cta_write": "ابدأ الكتابة الآن",
+    "cta_channels": "استكشف القنوات",
+    "cta_explore": "استعرض المقالات",
+    "features_eyebrow": "ما يميّزنا",
+    "features_title": "كل ما تحتاجه كمبدع رقمي",
+    "channels_eyebrow": "القنوات — جديد",
+    "channels_title": "مجتمعات متخصصة، على السلسلة",
+    "steps_eyebrow": "كيف تعمل المنصة",
+    "steps_title": "ثلاث خطوات للبدء",
+    "social_eyebrow": "قالوا عنا",
+    "social_title": "يثق بنا المبدعون",
+    "nft_eyebrow": "النشر على السلسلة",
+    "nft_title": "كل مقال يُسكّ كـ NFT دائم",
+    "cta_final_title": "جاهز تمتلك محتواك؟",
+    "cta_final_sub": "انضم إلى مئات الكتّاب والمبدعين الذين يبنون مستقبلهم الرقمي على Stellar."
   }
 }

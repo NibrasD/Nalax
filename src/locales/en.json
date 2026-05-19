@@ -170,5 +170,24 @@
     "tokenize": "Tokenize.",
     "monetize": "Monetize.",
     "own": "Own."
+  },
+  "home_v2": {
+    "hero_headline": "Own your content. Earn directly.",
+    "hero_sub": "StellarScribe is the first decentralized publishing platform for the Arabic community — write, mint NFTs, join specialized channels, and earn XLM with no middleman.",
+    "cta_write": "Start Writing Now",
+    "cta_channels": "Explore Channels",
+    "cta_explore": "Browse Articles",
+    "features_eyebrow": "What sets us apart",
+    "features_title": "Everything a digital creator needs",
+    "channels_eyebrow": "Channels — New",
+    "channels_title": "Specialized communities, on-chain",
+    "steps_eyebrow": "How the platform works",
+    "steps_title": "Three steps to get started",
+    "social_eyebrow": "What they say",
+    "social_title": "Trusted by creators",
+    "nft_eyebrow": "On-chain publishing",
+    "nft_title": "Every article minted as a permanent NFT",
+    "cta_final_title": "Ready to own your content?",
+    "cta_final_sub": "Join hundreds of writers and creators building their digital future on Stellar."
   }
 }
