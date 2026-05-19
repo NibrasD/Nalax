@@ -2,12 +2,78 @@
   "nav": {
     "home": "الرئيسية",
     "feed": "الخلاصة",
+    "channels": "القنوات",
     "explore": "استكشف",
     "write": "اكتب",
     "dashboard": "لوحة التحكم",
     "connect_wallet": "ربط المحفظة",
     "disconnect": "قطع الاتصال",
     "connecting": "جاري الاتصال..."
+  },
+  "channels": {
+    "eyebrow": "المجتمعات",
+    "title": "استكشف *المجتمعات*",
+    "subtitle": "انضم إلى قنوات متخصصة ناقش فيها Stellar، Web3، والمحتوى الرقمي مع المجتمع العربي.",
+    "create": "إنشاء قناة",
+    "all_channels": "كل القنوات",
+    "my_channels": "قنواتي",
+    "search_placeholder": "ابحث عن قناة أو وسم...",
+    "sort": {
+      "popular": "الأكثر متابعة",
+      "newest": "الأحدث",
+      "active": "الأكثر نشاطاً"
+    },
+    "stats": {
+      "channels": "قناة",
+      "members": "عضو",
+      "posts": "منشور"
+    },
+    "join": "انضم",
+    "joined": "مُنضم ✓",
+    "leave": "مغادرة",
+    "create_channel": "إنشاء قناة",
+    "no_channels": "لا توجد قنوات مطابقة",
+    "no_joined": "لم تنضم إلى أي قناة بعد",
+    "clear_filters": "مسح الفلاتر ×",
+    "members": "الأعضاء",
+    "posts_count": "المنشورات",
+    "about": "عن القناة",
+    "rules": "قواعد القناة",
+    "similar": "قنوات مشابهة",
+    "compose_placeholder": "شاركنا أفكارك في هذه القناة...",
+    "post_button": "نشر",
+    "join_to_post": "انضم إلى القناة لتتمكن من النشر فيها",
+    "join_now": "+ انضم الآن",
+    "wallet_required": "المحفظة مطلوبة",
+    "wallet_required_desc": "يجب ربط محفظتك لإنشاء قناة جديدة على المنصة.",
+    "back_to_channels": "العودة إلى القنوات",
+    "create_title": "إنشاء *قناة جديدة*",
+    "create_subtitle": "ابن مجتمعك الخاص وشارك الأفكار مع المهتمين.",
+    "form": {
+      "name": "اسم القناة",
+      "slug": "معرّف القناة (URL)",
+      "slug_hint": "أحرف إنجليزية صغيرة وأرقام وشرطة فقط",
+      "description": "الوصف",
+      "icon": "أيقونة القناة",
+      "banner": "لون الغلاف",
+      "tags": "الأوسمة (حتى 5)",
+      "privacy": "نوع القناة",
+      "public": "عامة",
+      "public_desc": "يمكن لأي شخص الانضمام والمشاركة",
+      "private": "خاصة",
+      "private_desc": "بالدعوة فقط (قريباً)",
+      "creator": "ستُنشأ القناة باسم",
+      "submit": "إنشاء القناة",
+      "creating": "جاري الإنشاء...",
+      "cancel": "إلغاء",
+      "errors": {
+        "name_required": "اسم القناة مطلوب",
+        "slug_required": "معرّف القناة مطلوب",
+        "slug_short": "المعرّف يجب أن يكون 3 أحرف على الأقل",
+        "description_required": "وصف القناة مطلوب",
+        "description_short": "الوصف يجب أن يكون 20 حرفاً على الأقل"
+      }
+    }
   },
   "home": {
     "hero": {

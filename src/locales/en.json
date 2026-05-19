@@ -2,12 +2,78 @@
   "nav": {
     "home": "Home",
     "feed": "Feed",
+    "channels": "Channels",
     "explore": "Explore",
     "write": "Write",
     "dashboard": "Dashboard",
     "connect_wallet": "Connect Wallet",
     "disconnect": "Disconnect",
     "connecting": "Connecting..."
+  },
+  "channels": {
+    "eyebrow": "Communities",
+    "title": "Explore *Channels*",
+    "subtitle": "Join specialized channels to discuss Stellar, Web3, and digital content with the Arabic community.",
+    "create": "Create Channel",
+    "all_channels": "All Channels",
+    "my_channels": "My Channels",
+    "search_placeholder": "Search channels or tags...",
+    "sort": {
+      "popular": "Most Popular",
+      "newest": "Newest",
+      "active": "Most Active"
+    },
+    "stats": {
+      "channels": "Channels",
+      "members": "Members",
+      "posts": "Posts"
+    },
+    "join": "Join",
+    "joined": "Joined ✓",
+    "leave": "Leave",
+    "create_channel": "Create Channel",
+    "no_channels": "No channels found",
+    "no_joined": "You haven't joined any channels yet",
+    "clear_filters": "Clear filters ×",
+    "members": "Members",
+    "posts_count": "Posts",
+    "about": "About",
+    "rules": "Rules",
+    "similar": "Similar Channels",
+    "compose_placeholder": "Share your thoughts in this channel...",
+    "post_button": "Post",
+    "join_to_post": "Join the channel to post",
+    "join_now": "+ Join Now",
+    "wallet_required": "Wallet Required",
+    "wallet_required_desc": "Connect your wallet to create a new channel.",
+    "back_to_channels": "Back to Channels",
+    "create_title": "Create a *New Channel*",
+    "create_subtitle": "Build your own community and share ideas with like-minded people.",
+    "form": {
+      "name": "Channel Name",
+      "slug": "Channel ID (URL)",
+      "slug_hint": "Lowercase letters, numbers and hyphens only",
+      "description": "Description",
+      "icon": "Channel Icon",
+      "banner": "Banner Color",
+      "tags": "Tags (up to 5)",
+      "privacy": "Channel Type",
+      "public": "Public",
+      "public_desc": "Anyone can join and post",
+      "private": "Private",
+      "private_desc": "Invite only (coming soon)",
+      "creator": "Channel will be created as",
+      "submit": "Create Channel",
+      "creating": "Creating...",
+      "cancel": "Cancel",
+      "errors": {
+        "name_required": "Channel name is required",
+        "slug_required": "Channel ID is required",
+        "slug_short": "ID must be at least 3 characters",
+        "description_required": "Channel description is required",
+        "description_short": "Description must be at least 20 characters"
+      }
+    }
   },
   "home": {
     "hero": {

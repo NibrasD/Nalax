@@ -8,6 +8,9 @@ import { Write } from './pages/Write';
 import { Article } from './pages/Article';
 import { Dashboard } from './pages/Dashboard';
 import { Feed } from './pages/Feed';
+import { Channels } from './pages/Channels';
+import { ChannelDetail } from './pages/ChannelDetail';
+import { CreateChannel } from './pages/CreateChannel';
 import './lib/i18n';
 import './index.css';
 
@@ -22,6 +25,9 @@ createRoot(document.getElementById('root')!).render(
           <Route path="/write" element={<Write />} />
           <Route path="/article/:id" element={<Article />} />
           <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/channels" element={<Channels />} />
+          <Route path="/channels/create" element={<CreateChannel />} />
+          <Route path="/channels/:id" element={<ChannelDetail />} />
         </Route>
       </Routes>
     </BrowserRouter>

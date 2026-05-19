@@ -1,7 +1,7 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useWallet } from '../store/useWallet';
 import { formatAddress } from '../lib/utils';
-import { Wallet, PenSquare, Compass, LayoutDashboard, Gem, Menu, X, Sun, Moon, Zap } from 'lucide-react';
+import { Wallet, PenSquare, Compass, LayoutDashboard, Gem, Menu, X, Sun, Moon, Zap, Hash } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -9,10 +9,11 @@ export function Navbar() {
   const { t, i18n } = useTranslation();
   
   const NAV_LINKS = [
-    { to: '/feed', label: t('nav.feed', 'الخلاصة'), icon: Zap },
-    { to: '/explore', label: t('nav.explore'), icon: Compass },
-    { to: '/write', label: t('nav.write'), icon: PenSquare },
-    { to: '/dashboard', label: t('nav.dashboard'), icon: LayoutDashboard },
+    { to: '/feed',     label: t('nav.feed',     'الخلاصة'),  icon: Zap },
+    { to: '/channels', label: t('nav.channels', 'القنوات'),   icon: Hash },
+    { to: '/explore',  label: t('nav.explore'),               icon: Compass },
+    { to: '/write',    label: t('nav.write'),                  icon: PenSquare },
+    { to: '/dashboard',label: t('nav.dashboard'),              icon: LayoutDashboard },
   ];
 
   const { isConnected, publicKey, connect, disconnect, isConnecting, balance } = useWallet();
