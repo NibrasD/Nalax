@@ -28,6 +28,7 @@ import {
   usePrivy,
   useCreateWallet,
   useWallets,
+  useLogout,
 } from '../lib/privy';
 import { useWallet } from '../store/useWallet';
 import { findStellarWallet, debugWallets, isStellarAddress } from '../lib/privy-stellar';
@@ -44,6 +45,7 @@ export function EmailAuthModal({ isOpen, onClose }: EmailAuthModalProps) {
   const { sendCode, loginWithCode, state } = useLoginWithEmail();
   const { createWallet } = useCreateWallet();
   const { wallets } = useWallets();
+  const { logout: privyLogout } = useLogout();
   const connectWithPrivy = useWallet((s) => s.connectWithPrivy);
 
   const [email, setEmail] = useState('');
@@ -53,6 +55,7 @@ export function EmailAuthModal({ isOpen, onClose }: EmailAuthModalProps) {
   const [error, setError] = useState<string | null>(null);
   const [stellarAddress, setStellarAddress] = useState<string | null>(null);
   const [hasTriedCreate, setHasTriedCreate] = useState(false);
+  const [errorKind, setErrorKind] = useState<'already-has-wallet' | 'generic' | null>(null);
 
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
   const otpLength = 6;
@@ -64,6 +67,7 @@ export function EmailAuthModal({ isOpen, onClose }: EmailAuthModalProps) {
       setEmail('');
       setOtp(Array(otpLength).fill(''));
       setError(null);
+      setErrorKind(null);
       setLoading(false);
       setStellarAddress(null);
       setHasTriedCreate(false);
@@ -111,10 +115,23 @@ export function EmailAuthModal({ isOpen, onClose }: EmailAuthModalProps) {
         } catch (e: any) {
           console.error('[privy] createWallet error:', e);
           setStep('wallet-error');
-          setError(
-            e?.message ||
-              'فشل إنشاء محفظة Stellar. ربما إصدار Privy SDK لا يدعم Stellar مباشرة، أو الميزة معطّلة في تطبيقك على Privy Dashboard.'
-          );
+
+          const msg = String(e?.message || '').toLowerCase();
+          if (msg.includes('already has') || msg.includes('embedded wallet')) {
+            // المشكلة الشائعة: Privy أنشأ ETH بالفعل ويرفض إنشاء Stellar
+            setErrorKind('already-has-wallet');
+            setError(
+              'لديك محفظة Ethereum أُنشئت تلقائياً عند أول تسجيل دخول، ' +
+              'وPrivy يرفض إنشاء محفظة Stellar إضافية. ' +
+              'اضغط "تسجيل خروج وإعادة المحاولة" لتنظيف الجلسة.'
+            );
+          } else {
+            setErrorKind('generic');
+            setError(
+              e?.message ||
+                'فشل إنشاء محفظة Stellar. ربما إصدار Privy SDK لا يدعم Stellar مباشرة، أو الميزة معطّلة في تطبيقك على Privy Dashboard.'
+            );
+          }
         }
       })();
     }
@@ -425,26 +442,72 @@ export function EmailAuthModal({ isOpen, onClose }: EmailAuthModalProps) {
               <div className="w-14 h-14 mx-auto mb-3 rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center">
                 <AlertCircle className="w-7 h-7 text-red-400" />
               </div>
-              <h3 className="text-xl font-serif mb-1">تعذّر إنشاء محفظة Stellar</h3>
+              <h3 className="text-xl font-serif mb-1">
+                {errorKind === 'already-has-wallet'
+                  ? 'محفظة Ethereum موجودة بدلاً من Stellar'
+                  : 'تعذّر إنشاء محفظة Stellar'}
+              </h3>
               <p className="text-[12px] text-[var(--color-text-dim)] leading-relaxed">
                 {error}
               </p>
             </div>
 
-            <div className="p-4 rounded-lg border border-yellow-500/20 bg-yellow-500/5 text-[11px] leading-relaxed text-[var(--color-text-secondary)]">
-              <div className="font-semibold text-yellow-300 mb-2">ماذا تفعل؟</div>
-              <ol className="list-decimal pr-4 space-y-1 text-[var(--color-text-dim)]">
-                <li>افتح <a href="https://dashboard.privy.io" target="_blank" rel="noreferrer" className="text-primary underline">Privy Dashboard</a></li>
-                <li>اختر تطبيقك ثم انتقل إلى Wallets / Chain Configuration</li>
-                <li>فعّل دعم <strong>Stellar</strong> (Tier 2). إن لم تجده، تواصل مع دعم Privy لتفعيله</li>
-                <li>تأكد أن إصدار <code className="bg-black/40 px-1 rounded">@privy-io/react-auth</code> هو <code className="bg-black/40 px-1 rounded">^3.0.0</code></li>
-                <li>افتح Console للحصول على تفاصيل الـ debugging (قائمة المحافظ)</li>
-              </ol>
-            </div>
+            {errorKind === 'already-has-wallet' ? (
+              <>
+                <div className="p-4 rounded-lg border border-yellow-500/20 bg-yellow-500/5 text-[11px] leading-relaxed text-[var(--color-text-secondary)]">
+                  <div className="font-semibold text-yellow-300 mb-2">لماذا حدث هذا؟</div>
+                  <p className="text-[var(--color-text-dim)] mb-3">
+                    Privy ينشئ محفظة افتراضية (Ethereum) عند أول تسجيل دخول. للحصول على
+                    محفظة Stellar، يجب تفعيلها أولاً في Privy Dashboard ثم تسجيل دخول مستخدم جديد.
+                  </p>
+                  <div className="font-semibold text-yellow-300 mb-1">الخطوات:</div>
+                  <ol className="list-decimal pr-4 space-y-1 text-[var(--color-text-dim)]">
+                    <li>افتح <a href="https://dashboard.privy.io" target="_blank" rel="noreferrer" className="text-primary underline">Privy Dashboard</a></li>
+                    <li>في تطبيقك → <strong>Wallets</strong> → فعّل <strong>Stellar</strong> (Tier 2)</li>
+                    <li>اضغط الزر أدناه لتنظيف الجلسة وإعادة المحاولة</li>
+                  </ol>
+                </div>
 
-            <button onClick={onClose} className="btn-outline w-full text-[12px]">
-              إغلاق
-            </button>
+                <div className="flex gap-2">
+                  <button onClick={onClose} className="btn-outline flex-1 text-[12px]">
+                    إغلاق
+                  </button>
+                  <button
+                    onClick={async () => {
+                      try {
+                        await privyLogout();
+                      } catch {}
+                      // إعادة تعيين كل شيء والبدء من جديد
+                      setStep('email');
+                      setError(null);
+                      setErrorKind(null);
+                      setHasTriedCreate(false);
+                      setOtp(Array(otpLength).fill(''));
+                    }}
+                    className="btn-primary flex-1 text-[12px]"
+                  >
+                    تسجيل خروج وإعادة المحاولة
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="p-4 rounded-lg border border-yellow-500/20 bg-yellow-500/5 text-[11px] leading-relaxed text-[var(--color-text-secondary)]">
+                  <div className="font-semibold text-yellow-300 mb-2">ماذا تفعل؟</div>
+                  <ol className="list-decimal pr-4 space-y-1 text-[var(--color-text-dim)]">
+                    <li>افتح <a href="https://dashboard.privy.io" target="_blank" rel="noreferrer" className="text-primary underline">Privy Dashboard</a></li>
+                    <li>اختر تطبيقك ثم انتقل إلى Wallets / Chain Configuration</li>
+                    <li>فعّل دعم <strong>Stellar</strong> (Tier 2). إن لم تجده، تواصل مع دعم Privy لتفعيله</li>
+                    <li>تأكد أن إصدار <code className="bg-black/40 px-1 rounded">@privy-io/react-auth</code> هو <code className="bg-black/40 px-1 rounded">^3.0.0</code></li>
+                    <li>افتح Console للحصول على تفاصيل الـ debugging</li>
+                  </ol>
+                </div>
+
+                <button onClick={onClose} className="btn-outline w-full text-[12px]">
+                  إغلاق
+                </button>
+              </>
+            )}
           </div>
         )}
 

@@ -13,6 +13,7 @@ import { create } from 'zustand';
 import { isAllowed, setAllowed, requestAccess, getAddress } from '@stellar/freighter-api';
 import { useToast } from './useToast';
 import { fetchXlmBalance } from '../lib/stellar';
+import { isStellarAddress } from '../lib/privy-stellar';
 
 export type WalletProvider = 'freighter' | 'privy' | null;
 
@@ -107,6 +108,14 @@ export const useWallet = create<WalletState>((set, get) => ({
   // ── Privy ───────────────────────────────────────────────────────────────────
   connectWithPrivy: async (publicKey: string) => {
     const toast = useToast.getState();
+    // ⚠️ تحقق صارم: لا نقبل عناوين Ethereum (0x...) كمفتاح Stellar
+    if (!isStellarAddress(publicKey)) {
+      console.warn(
+        '[useWallet] رفض connectWithPrivy لعنوان غير Stellar:',
+        publicKey
+      );
+      return;
+    }
     try {
       const realBalance = await fetchXlmBalance(publicKey);
       set({
