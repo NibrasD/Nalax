@@ -1,10 +1,9 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useWallet } from '../store/useWallet';
 import { formatAddress } from '../lib/utils';
-import { Wallet, PenSquare, Compass, LayoutDashboard, Gem, Menu, X, Sun, Moon, Zap, Hash, Mail, LogOut, ChevronDown } from 'lucide-react';
+import { Wallet, PenSquare, Compass, LayoutDashboard, Gem, Menu, X, Sun, Moon, Zap, Hash, Sparkles, LogOut, ChevronDown } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { usePrivy, useLogout } from '../lib/privy';
 import { EmailAuthModal } from './EmailAuthModal';
 
 export function Navbar() {
@@ -19,8 +18,6 @@ export function Navbar() {
   ];
 
   const { isConnected, publicKey, connect, disconnect, isConnecting, balance, provider } = useWallet();
-  const { user: privyUser } = usePrivy();
-  const { logout: privyLogout } = useLogout();
   const location = useLocation();
   const [mobileOpen, setMobileOpen]   = useState(false);
   const [scrolled, setScrolled]       = useState(false);
@@ -56,8 +53,7 @@ export function Navbar() {
     return () => document.removeEventListener('mousedown', fn);
   }, []);
 
-  const handleDisconnect = async () => {
-    if (provider === 'privy') await privyLogout();
+  const handleDisconnect = () => {
     disconnect();
     setShowWalletMenu(false);
   };
@@ -66,10 +62,7 @@ export function Navbar() {
     ? `${publicKey.slice(0, 4)}...${publicKey.slice(-4)}`
     : '';
 
-  const privyEmail = (privyUser as any)?.email?.address || (privyUser as any)?.email;
-  const displayName = provider === 'privy' && privyEmail
-    ? String(privyEmail).split('@')[0]
-    : displayAddress;
+  const displayName = displayAddress;
 
   return (
     <>
@@ -136,8 +129,8 @@ export function Navbar() {
                     onClick={() => setShowWalletMenu(v => !v)}
                     className="flex items-center gap-2 px-3 py-1.5 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-full hover:border-[var(--color-border-bright)] transition-colors cursor-pointer"
                   >
-                    {provider === 'privy' ? (
-                      <Mail className="w-3.5 h-3.5 text-primary" />
+                    {provider === 'quick-wallet' ? (
+                      <Sparkles className="w-3.5 h-3.5 text-primary" />
                     ) : (
                       <Wallet className="w-3.5 h-3.5 text-primary" />
                     )}
@@ -151,7 +144,7 @@ export function Navbar() {
                     <div className="absolute left-0 mt-2 w-56 glass-panel-elevated rounded-xl border border-[var(--color-border)] py-1 shadow-2xl animate-fadeIn z-10">
                       <div className="px-4 py-2 border-b border-[var(--color-border)]">
                         <div className="text-[10px] font-mono text-[var(--color-text-muted)] uppercase tracking-wider mb-0.5">
-                          {provider === 'privy' ? 'Privy Wallet' : 'Freighter Wallet'}
+                          {provider === 'quick-wallet' ? 'Quick Wallet' : 'Freighter Wallet'}
                         </div>
                         <div className="text-[11px] font-mono text-primary break-all" dir="ltr">
                           {publicKey?.slice(0, 8)}...{publicKey?.slice(-6)}
@@ -186,13 +179,13 @@ export function Navbar() {
               /* ── Not Connected ─────────────────────────────────── */
               <div className="hidden md:flex items-center gap-2">
 
-                {/* Email Login Button */}
+                {/* Quick Wallet Button */}
                 <button
                   onClick={() => setShowEmailModal(true)}
                   className="flex items-center gap-2 px-4 py-2.5 font-semibold text-[11px] font-mono uppercase tracking-[1.5px] transition-all cursor-pointer rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] hover:border-primary/40 hover:bg-primary/5 text-[var(--color-text-secondary)] hover:text-white"
                 >
-                  <Mail className="w-3.5 h-3.5" />
-                  سجّل بالإيميل
+                  <Sparkles className="w-3.5 h-3.5" />
+                  محفظة فورية
                 </button>
 
                 {/* Freighter Button */}
@@ -268,7 +261,7 @@ export function Navbar() {
                     onClick={() => { setShowEmailModal(true); setMobileOpen(false); }}
                     className="w-full py-2.5 border border-[var(--color-border)] text-[11px] font-mono uppercase tracking-[1.5px] cursor-pointer rounded-sm flex items-center justify-center gap-2 text-[var(--color-text-secondary)]"
                   >
-                    <Mail className="w-4 h-4" /> سجّل بالإيميل
+                    <Sparkles className="w-4 h-4" /> محفظة فورية
                   </button>
                   <button
                     onClick={connect}

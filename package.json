@@ -12,7 +12,6 @@
   },
   "dependencies": {
     "@google/genai": "^1.29.0",
-    "@privy-io/react-auth": "^3.0.0",
     "@stellar/freighter-api": "^6.0.1",
     "@stellar/stellar-sdk": "^15.0.1",
     "@tailwindcss/vite": "^4.1.14",

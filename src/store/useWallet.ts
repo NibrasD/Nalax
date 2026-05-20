@@ -2,20 +2,21 @@
  * useWallet — Unified Wallet Store
  * ──────────────────────────────────
  * يدعم مزودَّين:
- *   • 'freighter' — إضافة المتصفح Freighter (المستخدمون المتقدمون)
- *   • 'privy'     — تسجيل الدخول بالإيميل عبر Privy (المستخدمون الجدد)
- *
- * الباقي من الكود (Article, Dashboard, Write...) لا يحتاج أي تعديل —
- * يستخدم نفس الواجهة: isConnected, publicKey, balance, connect, disconnect.
+ *   • 'freighter'    — إضافة المتصفح (للمستخدمين المتقدمين)
+ *   • 'quick-wallet' — محفظة Stellar محلية بسيطة في localStorage
  */
 
 import { create } from 'zustand';
 import { isAllowed, setAllowed, requestAccess, getAddress } from '@stellar/freighter-api';
 import { useToast } from './useToast';
 import { fetchXlmBalance } from '../lib/stellar';
-import { isStellarAddress } from '../lib/privy-stellar';
+import {
+  isStellarAddress,
+  loadWalletFromStorage,
+  clearWallet as clearQuickWallet,
+} from '../lib/quick-wallet';
 
-export type WalletProvider = 'freighter' | 'privy' | null;
+export type WalletProvider = 'freighter' | 'quick-wallet' | null;
 
 interface WalletState {
   isConnected: boolean;
@@ -28,8 +29,11 @@ interface WalletState {
   // Freighter
   connect: () => Promise<void>;
 
-  // Privy — يُستدعى من usePrivy بعد اكتمال OTP
-  connectWithPrivy: (publicKey: string) => Promise<void>;
+  // Quick Wallet (محلية) — يُستدعى من Modal بعد الإنشاء/الاستيراد
+  connectQuickWallet: (publicKey: string) => Promise<void>;
+
+  // محاولة استرجاع محفظة محفوظة في localStorage
+  tryRestoreQuickWallet: () => Promise<boolean>;
 
   disconnect: () => void;
   refreshBalance: () => Promise<void>;
@@ -105,15 +109,11 @@ export const useWallet = create<WalletState>((set, get) => ({
     }
   },
 
-  // ── Privy ───────────────────────────────────────────────────────────────────
-  connectWithPrivy: async (publicKey: string) => {
+  // ── Quick Wallet (محفظة محلية) ──────────────────────────────────────────────
+  connectQuickWallet: async (publicKey: string) => {
     const toast = useToast.getState();
-    // ⚠️ تحقق صارم: لا نقبل عناوين Ethereum (0x...) كمفتاح Stellar
     if (!isStellarAddress(publicKey)) {
-      console.warn(
-        '[useWallet] رفض connectWithPrivy لعنوان غير Stellar:',
-        publicKey
-      );
+      console.warn('[useWallet] رفض connectQuickWallet لعنوان غير Stellar:', publicKey);
       return;
     }
     try {
@@ -123,21 +123,57 @@ export const useWallet = create<WalletState>((set, get) => ({
         publicKey,
         isConnecting: false,
         balance: realBalance,
-        provider: 'privy',
+        provider: 'quick-wallet',
       });
       toast.addToast({
         type: 'success',
-        title: '✅ تم تسجيل الدخول',
-        message: `محفظتك: ${publicKey.slice(0, 6)}...${publicKey.slice(-4)} — ${realBalance} XLM`,
+        title: '✅ المحفظة جاهزة',
+        message: `${publicKey.slice(0, 6)}...${publicKey.slice(-4)} — ${realBalance} XLM`,
       });
     } catch (e: any) {
-      console.error('connectWithPrivy error:', e);
+      console.error('connectQuickWallet error:', e);
     }
   },
 
-  // ── Disconnect ──────────────────────────────────────────────────────────────
+  // ── استرجاع المحفظة المحفوظة عند تحميل الصفحة ────────────────────────────────
+  tryRestoreQuickWallet: async () => {
+    const kp = loadWalletFromStorage();
+    if (!kp) return false;
+    const address = kp.publicKey();
+    try {
+      const realBalance = await fetchXlmBalance(address);
+      set({
+        isConnected: true,
+        publicKey: address,
+        balance: realBalance,
+        provider: 'quick-wallet',
+      });
+      return true;
+    } catch {
+      // فشل جلب الرصيد — نُكمل التوصيل بدون رصيد
+      set({
+        isConnected: true,
+        publicKey: address,
+        balance: '0',
+        provider: 'quick-wallet',
+      });
+      return true;
+    }
+  },
+
+  // ── قطع الاتصال ─────────────────────────────────────────────────────────────
   disconnect: () => {
-    set({ isConnected: false, publicKey: null, connectError: null, balance: '0', provider: null });
+    const { provider } = get();
+    if (provider === 'quick-wallet') {
+      clearQuickWallet();
+    }
+    set({
+      isConnected: false,
+      publicKey: null,
+      connectError: null,
+      balance: '0',
+      provider: null,
+    });
     useToast.getState().addToast({ type: 'info', title: 'تم قطع الاتصال' });
   },
 

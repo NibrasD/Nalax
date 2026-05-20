@@ -1,8 +1,8 @@
-import { StrictMode, useEffect, useRef } from 'react';
+import { StrictMode, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 
-// ── Buffer polyfill for browser (Privy + Stellar SDK يحتاجانه) ────────────────
+// ── Buffer polyfill (Stellar SDK يحتاجه في المتصفح) ─────────────────────────
 import { Buffer } from 'buffer';
 if (typeof window !== 'undefined' && !window.Buffer) {
   (window as any).Buffer = Buffer;
@@ -19,90 +19,50 @@ import { Channels } from './pages/Channels';
 import { ChannelDetail } from './pages/ChannelDetail';
 import { CreateChannel } from './pages/CreateChannel';
 
-import { PrivyProvider, usePrivy, useWallets } from './lib/privy';
-import {
-  findEthereumWallet,
-  signStellarTransactionWithPrivy,
-  isStellarAddress,
-  debugWallets,
-  deriveStellarKeypairFromPrivy,
-  setActiveStellarKeypair,
-  getActiveStellarAddress,
-} from './lib/privy-stellar';
 import { useWallet } from './store/useWallet';
-import { registerPrivySigner, clearPrivySigner } from './lib/stellar';
+import { signXdrLocally, getActiveAddress } from './lib/quick-wallet';
+import { registerPrivySigner } from './lib/stellar';
 
 import './lib/i18n';
 import './index.css';
 
 /**
- * PrivyWalletBridge
+ * QuickWalletBridge
  * ───────────────────
- * يربط Privy ↔ useWallet ↔ stellar.ts.
- *
- * عند العودة لجلسة موجودة (refresh للصفحة):
- *   - Privy يستعيد ETH wallet تلقائياً
- *   - نُعيد استخراج Stellar keypair من توقيعها (silent إن أمكن)
- *   - نسجّل الـ signer في stellar.ts
+ * عند تحميل الصفحة:
+ *   1. حاول استرجاع المحفظة المحفوظة من localStorage
+ *   2. إن وُجدت، سجّل الـ signer في stellar.ts
  */
-function PrivyWalletBridge() {
-  const { authenticated, ready } = usePrivy();
-  const { wallets } = useWallets();
-  const { connectWithPrivy, disconnect, provider, publicKey } = useWallet();
-  const isReDeriving = useRef(false);
+function QuickWalletBridge() {
+  const tryRestore = useWallet((s) => s.tryRestoreQuickWallet);
+  const { provider, publicKey } = useWallet();
 
   useEffect(() => {
-    if (!ready) return;
-
-    if (authenticated) debugWallets(wallets, 'Bridge');
-
-    const ethWallet = findEthereumWallet(wallets);
-
-    // الحالة 1: مستخدم مُسجّل ولديه ETH wallet
-    if (authenticated && ethWallet?.address) {
-      const cachedAddr = getActiveStellarAddress();
-
-      // إذا الـ keypair موجود في الذاكرة بالفعل، فقط نسجّل الـ signer
-      if (cachedAddr && isStellarAddress(cachedAddr)) {
-        registerPrivySigner(cachedAddr, async (xdrString: string) => {
-          return signStellarTransactionWithPrivy(xdrString, null);
-        });
-        if (provider !== 'privy' || publicKey !== cachedAddr) {
-          connectWithPrivy(cachedAddr);
+    (async () => {
+      const restored = await tryRestore();
+      if (restored) {
+        const addr = getActiveAddress();
+        if (addr) {
+          registerPrivySigner(addr, async (xdrString: string) => {
+            return signXdrLocally(xdrString);
+          });
+          console.info('[QuickWallet] استُعيدت المحفظة:', addr);
         }
-        return;
       }
+    })();
+  }, [tryRestore]);
 
-      // أول تسجيل دخول — أُنشئ stellar keypair وقم بالربط
-      // (EmailAuthModal يفعل هذا أيضاً، لكن نحتاج fallback عند refresh)
-      if (!isReDeriving.current) {
-        isReDeriving.current = true;
-        (async () => {
-          try {
-            const { keypair, address } = await deriveStellarKeypairFromPrivy(
-              ethWallet
-            );
-            setActiveStellarKeypair(keypair);
-            registerPrivySigner(address, async (xdrString: string) => {
-              return signStellarTransactionWithPrivy(xdrString, null);
-            });
-            connectWithPrivy(address);
-            console.info('[Bridge] Stellar address re-derived:', address);
-          } catch (e) {
-            console.error('[Bridge] فشل إعادة استخراج Stellar:', e);
-          } finally {
-            isReDeriving.current = false;
-          }
-        })();
+  // عند تغيير المحفظة (إنشاء/استيراد جديد)، حدّث الـ signer
+  useEffect(() => {
+    if (provider === 'quick-wallet' && publicKey) {
+      const addr = getActiveAddress();
+      if (addr === publicKey) {
+        registerPrivySigner(addr, async (xdrString: string) => {
+          return signXdrLocally(xdrString);
+        });
       }
     }
-    // الحالة 2: المستخدم سجّل خروجه
-    else if (!authenticated && provider === 'privy') {
-      clearPrivySigner();
-      setActiveStellarKeypair(null);
-      disconnect();
-    }
-  }, [authenticated, ready, wallets, provider, publicKey, connectWithPrivy, disconnect]);
+  }, [provider, publicKey]);
 
   return null;
 }
@@ -110,7 +70,7 @@ function PrivyWalletBridge() {
 function AppRoot() {
   return (
     <BrowserRouter>
-      <PrivyWalletBridge />
+      <QuickWalletBridge />
       <Routes>
         <Route element={<Layout />}>
           <Route path="/"                element={<Home />} />
@@ -130,8 +90,6 @@ function AppRoot() {
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <PrivyProvider>
-      <AppRoot />
-    </PrivyProvider>
+    <AppRoot />
   </StrictMode>
 );
