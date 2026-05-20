@@ -1,6 +1,26 @@
 import { rpc, TransactionBuilder, Networks, xdr, Contract, Asset, Operation, Memo, nativeToScVal, scValToNative, Address } from '@stellar/stellar-sdk';
+import { rpc, TransactionBuilder, Networks, xdr, Contract, Asset, Operation, Memo, nativeToScVal, scValToNative, Address } from '@stellar/stellar-sdk';
 import { signTransaction } from '@stellar/freighter-api';
 import { CONTRACT_METHODS } from './contract';
+
+// ─── Privy Signing Bridge ────────────────────────────────────────────────────
+// يُحقن من PrivyProvider عند تسجيل الدخول بالإيميل
+// الكود التالي يسمح لـ stellar.ts بالتوقيع بدون import دائري
+let _privySignFn: ((xdr: string) => Promise<string>) | null = null;
+let _privyPublicKey: string | null = null;
+
+export function registerPrivySigner(
+  publicKey: string,
+  signFn: (xdr: string) => Promise<string>
+) {
+  _privyPublicKey = publicKey;
+  _privySignFn = signFn;
+}
+
+export function clearPrivySigner() {
+  _privyPublicKey = null;
+  _privySignFn = null;
+}
 
 const SERVER_URL = 'https://soroban-testnet.stellar.org';
 const NETWORK_PASSPHRASE = Networks.TESTNET;
@@ -76,12 +96,17 @@ export async function invokeSorobanContract(
     // Assemble the transaction with the simulation data
     transaction = rpc.assembleTransaction(transaction, simulated).build();
 
-    // Ask Freighter to sign the transaction
-    const signResult = await signTransaction(transaction.toXDR(), {
-      network: 'TESTNET',
-      networkPassphrase: NETWORK_PASSPHRASE,
-    });
-    const signedTxXdr = typeof signResult === 'string' ? signResult : (signResult as any).signedTxXdr;
+    // التوقيع: Privy أولاً → Freighter احتياطياً
+    let signedTxXdr: string;
+    if (_privySignFn && _privyPublicKey === publicKey) {
+      signedTxXdr = await _privySignFn(transaction.toXDR());
+    } else {
+      const signResult = await signTransaction(transaction.toXDR(), {
+        network: 'TESTNET',
+        networkPassphrase: NETWORK_PASSPHRASE,
+      });
+      signedTxXdr = typeof signResult === 'string' ? signResult : (signResult as any).signedTxXdr;
+    }
 
     // Submit to Soroban RPC
     const response = await server.sendTransaction(
@@ -271,16 +296,20 @@ export async function sendStellarPayment(
       .setTimeout(30)
       .build();
 
-    const signResult = await signTransaction(transaction.toXDR(), {
-      network: 'TESTNET',
-      networkPassphrase: NETWORK_PASSPHRASE,
-    });
-    const signedTxXdr = typeof signResult === 'string' ? signResult : (signResult as any).signedTxXdr;
+    let signedTxXdr2: string;
+    if (_privySignFn && _privyPublicKey === senderPublicKey) {
+      signedTxXdr2 = await _privySignFn(transaction.toXDR());
+    } else {
+      const signResult = await signTransaction(transaction.toXDR(), {
+        network: 'TESTNET',
+        networkPassphrase: NETWORK_PASSPHRASE,
+      });
+      signedTxXdr2 = typeof signResult === 'string' ? signResult : (signResult as any).signedTxXdr;
+    }
 
     const response = await server.sendTransaction(
-      TransactionBuilder.fromXDR(signedTxXdr, NETWORK_PASSPHRASE) as any
+      TransactionBuilder.fromXDR(signedTxXdr2, NETWORK_PASSPHRASE) as any
     );
-
     return await waitForTransaction(response.hash);
   } catch (error) {
     console.error("Payment error:", error);
@@ -310,14 +339,19 @@ export async function writeArticleToChain(senderPublicKey: string, title: string
       .setTimeout(30)
       .build();
 
-    const signResult = await signTransaction(transaction.toXDR(), {
-      network: 'TESTNET',
-      networkPassphrase: NETWORK_PASSPHRASE,
-    });
-    const signedTxXdr = typeof signResult === 'string' ? signResult : (signResult as any).signedTxXdr;
+    let signedTxXdr3: string;
+    if (_privySignFn && _privyPublicKey === senderPublicKey) {
+      signedTxXdr3 = await _privySignFn(transaction.toXDR());
+    } else {
+      const signResult = await signTransaction(transaction.toXDR(), {
+        network: 'TESTNET',
+        networkPassphrase: NETWORK_PASSPHRASE,
+      });
+      signedTxXdr3 = typeof signResult === 'string' ? signResult : (signResult as any).signedTxXdr;
+    }
 
     const response = await server.sendTransaction(
-      TransactionBuilder.fromXDR(signedTxXdr, NETWORK_PASSPHRASE) as any
+      TransactionBuilder.fromXDR(signedTxXdr3, NETWORK_PASSPHRASE) as any
     );
 
     return await waitForTransaction(response.hash);

@@ -1,52 +1,83 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useWallet } from '../store/useWallet';
 import { formatAddress } from '../lib/utils';
-import { Wallet, PenSquare, Compass, LayoutDashboard, Gem, Menu, X, Sun, Moon, Zap, Hash } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { Wallet, PenSquare, Compass, LayoutDashboard, Gem, Menu, X, Sun, Moon, Zap, Hash, Mail, LogOut, ChevronDown } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import { usePrivy } from '../lib/privy';
+import { EmailAuthModal } from './EmailAuthModal';
 
 export function Navbar() {
   const { t, i18n } = useTranslation();
-  
+
   const NAV_LINKS = [
-    { to: '/feed',     label: t('nav.feed',     'الخلاصة'),  icon: Zap },
-    { to: '/channels', label: t('nav.channels', 'القنوات'),   icon: Hash },
-    { to: '/explore',  label: t('nav.explore'),               icon: Compass },
-    { to: '/write',    label: t('nav.write'),                  icon: PenSquare },
-    { to: '/dashboard',label: t('nav.dashboard'),              icon: LayoutDashboard },
+    { to: '/feed',      label: t('nav.feed'),      icon: Zap },
+    { to: '/channels',  label: t('nav.channels'),  icon: Hash },
+    { to: '/explore',   label: t('nav.explore'),   icon: Compass },
+    { to: '/write',     label: t('nav.write'),     icon: PenSquare },
+    { to: '/dashboard', label: t('nav.dashboard'), icon: LayoutDashboard },
   ];
 
-  const { isConnected, publicKey, connect, disconnect, isConnecting, balance } = useWallet();
+  const { isConnected, publicKey, connect, disconnect, isConnecting, balance, provider } = useWallet();
+  const { authenticated, user: privyUser, logout: privyLogout } = usePrivy();
   const location = useLocation();
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const [scrolled, setScrolled] = useState(false);
-  
-  const [theme, setTheme] = useState(document.documentElement.getAttribute('data-theme') || 'dark');
+  const [mobileOpen, setMobileOpen]   = useState(false);
+  const [scrolled, setScrolled]       = useState(false);
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [showWalletMenu, setShowWalletMenu] = useState(false);
+  const walletMenuRef = useRef<HTMLDivElement>(null);
+  const [theme, setTheme] = useState(
+    document.documentElement.getAttribute('data-theme') || 'dark'
+  );
 
   const toggleTheme = () => {
-    const newTheme = theme === 'dark' ? 'light' : 'dark';
-    setTheme(newTheme);
-    document.documentElement.setAttribute('data-theme', newTheme);
+    const next = theme === 'dark' ? 'light' : 'dark';
+    setTheme(next);
+    document.documentElement.setAttribute('data-theme', next);
   };
 
   useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 20);
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
+    const fn = () => setScrolled(window.scrollY > 20);
+    window.addEventListener('scroll', fn);
+    return () => window.removeEventListener('scroll', fn);
   }, []);
 
+  useEffect(() => { setMobileOpen(false); }, [location.pathname]);
+
+  // إغلاق wallet dropdown عند الضغط خارجه
   useEffect(() => {
-    setMobileOpen(false);
-  }, [location.pathname]);
+    const fn = (e: MouseEvent) => {
+      if (walletMenuRef.current && !walletMenuRef.current.contains(e.target as Node)) {
+        setShowWalletMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', fn);
+    return () => document.removeEventListener('mousedown', fn);
+  }, []);
+
+  const handleDisconnect = async () => {
+    if (provider === 'privy') await privyLogout();
+    disconnect();
+    setShowWalletMenu(false);
+  };
+
+  const displayAddress = publicKey
+    ? `${publicKey.slice(0, 4)}...${publicKey.slice(-4)}`
+    : '';
+
+  const displayName = provider === 'privy' && privyUser?.email
+    ? privyUser.email.split('@')[0]
+    : displayAddress;
 
   return (
     <>
       <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
-        scrolled 
-          ? 'bg-[var(--color-bg-base)]/90 backdrop-blur-2xl border-b border-[var(--color-border)]' 
+        scrolled
+          ? 'bg-[var(--color-bg-base)]/90 backdrop-blur-2xl border-b border-[var(--color-border)]'
           : 'bg-transparent'
       }`}>
         <div className="max-w-7xl mx-auto flex items-center justify-between py-3 px-6">
+
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2.5 group">
             <div className="w-9 h-9 flex items-center justify-center relative">
@@ -61,7 +92,7 @@ export function Navbar() {
               Na<span className="text-gradient">lax</span>
             </span>
           </Link>
-          
+
           {/* Desktop Nav */}
           <div className="hidden md:flex items-center gap-1 p-1 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]/60 backdrop-blur-sm">
             {NAV_LINKS.map(({ to, label, icon: Icon }) => {
@@ -85,29 +116,63 @@ export function Navbar() {
           </div>
 
           {/* Right Side */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+
             {isConnected ? (
-              <div className="hidden md:flex items-center gap-3">
-                <div className="flex items-center gap-2 px-3 py-1.5 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-sm">
-                  <span className="w-2 h-2 rounded-full bg-accent animate-pulse" />
-                  <span className="text-[11px] font-mono text-primary">{formatAddress(publicKey)}</span>
+              /* ── Connected State ──────────────────────────────── */
+              <div className="hidden md:flex items-center gap-2">
+
+                {/* Balance chip */}
+                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-full">
+                  <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
+                  <span className="text-[11px] font-mono text-accent font-medium">{balance} XLM</span>
                 </div>
-                <button 
-                  onClick={disconnect}
-                  className="text-[10px] font-mono uppercase tracking-[1px] text-[var(--color-text-dim)] hover:text-[var(--color-error)] transition-colors cursor-pointer px-2 py-1.5"
-                >
-                  {t('nav.disconnect', 'Disconnect')}
-                </button>
-                
-                {/* Language Switcher */}
-                <button 
+
+                {/* Account dropdown */}
+                <div className="relative" ref={walletMenuRef}>
+                  <button
+                    onClick={() => setShowWalletMenu(v => !v)}
+                    className="flex items-center gap-2 px-3 py-1.5 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-full hover:border-[var(--color-border-bright)] transition-colors cursor-pointer"
+                  >
+                    {provider === 'privy' ? (
+                      <Mail className="w-3.5 h-3.5 text-primary" />
+                    ) : (
+                      <Wallet className="w-3.5 h-3.5 text-primary" />
+                    )}
+                    <span className="text-[12px] font-mono text-[var(--color-text-secondary)]">
+                      {displayName}
+                    </span>
+                    <ChevronDown className={`w-3 h-3 text-[var(--color-text-muted)] transition-transform ${showWalletMenu ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  {showWalletMenu && (
+                    <div className="absolute left-0 mt-2 w-56 glass-panel-elevated rounded-xl border border-[var(--color-border)] py-1 shadow-2xl animate-fadeIn z-10">
+                      <div className="px-4 py-2 border-b border-[var(--color-border)]">
+                        <div className="text-[10px] font-mono text-[var(--color-text-muted)] uppercase tracking-wider mb-0.5">
+                          {provider === 'privy' ? 'Privy Wallet' : 'Freighter Wallet'}
+                        </div>
+                        <div className="text-[11px] font-mono text-primary break-all" dir="ltr">
+                          {publicKey?.slice(0, 8)}...{publicKey?.slice(-6)}
+                        </div>
+                      </div>
+                      <button
+                        onClick={handleDisconnect}
+                        className="w-full flex items-center gap-2 px-4 py-2.5 text-[13px] text-[var(--color-error)] hover:bg-[var(--color-error)]/5 transition-colors cursor-pointer"
+                      >
+                        <LogOut className="w-3.5 h-3.5" />
+                        {t('nav.disconnect')}
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Language + Theme */}
+                <button
                   onClick={() => i18n.changeLanguage(i18n.language === 'ar' ? 'en' : 'ar')}
                   className="text-[12px] font-semibold uppercase tracking-[1px] text-primary hover:text-white hover:bg-primary transition-colors cursor-pointer px-3 py-2 border border-primary/20 rounded-full"
                 >
                   {i18n.language === 'ar' ? 'EN' : 'AR'}
                 </button>
-
-                {/* Theme Toggle */}
                 <button
                   onClick={toggleTheme}
                   className="p-2 text-[var(--color-text-secondary)] hover:text-[var(--color-text-main)] hover:bg-[var(--color-surface)] rounded-full transition-colors cursor-pointer border border-transparent hover:border-[var(--color-border)]"
@@ -116,26 +181,36 @@ export function Navbar() {
                 </button>
               </div>
             ) : (
-              <div className="hidden md:flex items-center gap-3">
-                <button 
+              /* ── Not Connected ─────────────────────────────────── */
+              <div className="hidden md:flex items-center gap-2">
+
+                {/* Email Login Button */}
+                <button
+                  onClick={() => setShowEmailModal(true)}
+                  className="flex items-center gap-2 px-4 py-2.5 font-semibold text-[11px] font-mono uppercase tracking-[1.5px] transition-all cursor-pointer rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] hover:border-primary/40 hover:bg-primary/5 text-[var(--color-text-secondary)] hover:text-white"
+                >
+                  <Mail className="w-3.5 h-3.5" />
+                  سجّل بالإيميل
+                </button>
+
+                {/* Freighter Button */}
+                <button
                   onClick={connect}
                   disabled={isConnecting}
                   className="flex items-center gap-2 px-5 py-2.5 font-semibold text-[11px] font-mono uppercase tracking-[1.5px] transition-all disabled:opacity-50 cursor-pointer rounded-xl text-white"
                   style={{ background: 'linear-gradient(135deg, #5B5EFF, #4446D6)', boxShadow: '0 4px 20px rgba(91,94,255,0.4)' }}
                 >
                   <Wallet className="w-3.5 h-3.5" />
-                  {isConnecting ? t('nav.connecting', 'Connecting...') : t('nav.connect_wallet')}
+                  {isConnecting ? t('nav.connecting') : t('nav.connect_wallet')}
                 </button>
-                
-                {/* Language Switcher */}
-                <button 
+
+                {/* Language + Theme */}
+                <button
                   onClick={() => i18n.changeLanguage(i18n.language === 'ar' ? 'en' : 'ar')}
                   className="text-[12px] font-semibold uppercase tracking-[1px] text-primary hover:text-white hover:bg-primary transition-colors cursor-pointer px-3 py-2 border border-primary/20 rounded-full"
                 >
                   {i18n.language === 'ar' ? 'EN' : 'AR'}
                 </button>
-
-                {/* Theme Toggle */}
                 <button
                   onClick={toggleTheme}
                   className="p-2 text-[var(--color-text-secondary)] hover:text-[var(--color-text-main)] hover:bg-[var(--color-surface)] rounded-full transition-colors cursor-pointer border border-transparent hover:border-[var(--color-border)]"
@@ -146,7 +221,7 @@ export function Navbar() {
             )}
 
             {/* Mobile Toggle */}
-            <button 
+            <button
               onClick={() => setMobileOpen(!mobileOpen)}
               className="md:hidden text-white cursor-pointer p-1"
             >
@@ -156,7 +231,7 @@ export function Navbar() {
         </div>
       </nav>
 
-      {/* Mobile Menu */}
+      {/* ── Mobile Menu ───────────────────────────────────────────── */}
       {mobileOpen && (
         <div className="fixed inset-0 z-40 bg-[var(--color-bg-base)]/98 backdrop-blur-xl md:hidden animate-fadeIn">
           <div className="flex flex-col items-center justify-center h-full gap-8">
@@ -170,28 +245,49 @@ export function Navbar() {
                 {label}
               </Link>
             ))}
-            
-            <div className="border-t border-[var(--color-border)] pt-8 mt-4 w-48">
+
+            <div className="border-t border-[var(--color-border)] pt-8 mt-4 w-52 space-y-3">
               {isConnected ? (
-                <div className="flex flex-col items-center gap-3">
-                  <span className="text-[11px] font-mono text-primary">{formatAddress(publicKey)}</span>
-                  <button onClick={disconnect} className="text-[11px] font-mono uppercase text-[var(--color-error)] cursor-pointer">
-                    Disconnect
+                <>
+                  <div className="text-center">
+                    <div className="text-[11px] font-mono text-accent mb-1">{balance} XLM</div>
+                    <div className="text-[10px] font-mono text-primary">{formatAddress(publicKey)}</div>
+                  </div>
+                  <button
+                    onClick={handleDisconnect}
+                    className="w-full py-2.5 text-[11px] font-mono uppercase text-[var(--color-error)] border border-[var(--color-error)]/20 rounded-sm cursor-pointer flex items-center justify-center gap-2"
+                  >
+                    <LogOut className="w-3.5 h-3.5" /> {t('nav.disconnect')}
                   </button>
-                </div>
+                </>
               ) : (
-                <button 
-                  onClick={connect}
-                  disabled={isConnecting}
-                  className="w-full py-3 bg-white text-black font-semibold text-[11px] font-mono uppercase tracking-[1.5px] cursor-pointer rounded-sm"
-                >
-                  {isConnecting ? "Connecting..." : "Connect Wallet"}
-                </button>
+                <>
+                  <button
+                    onClick={() => { setShowEmailModal(true); setMobileOpen(false); }}
+                    className="w-full py-2.5 border border-[var(--color-border)] text-[11px] font-mono uppercase tracking-[1.5px] cursor-pointer rounded-sm flex items-center justify-center gap-2 text-[var(--color-text-secondary)]"
+                  >
+                    <Mail className="w-4 h-4" /> سجّل بالإيميل
+                  </button>
+                  <button
+                    onClick={connect}
+                    disabled={isConnecting}
+                    className="w-full py-2.5 bg-white text-black font-semibold text-[11px] font-mono uppercase tracking-[1.5px] cursor-pointer rounded-sm flex items-center justify-center gap-2"
+                  >
+                    <Wallet className="w-4 h-4" />
+                    {isConnecting ? t('nav.connecting') : t('nav.connect_wallet')}
+                  </button>
+                </>
               )}
             </div>
           </div>
         </div>
       )}
+
+      {/* ── Email Auth Modal ──────────────────────────────────────── */}
+      <EmailAuthModal
+        isOpen={showEmailModal}
+        onClose={() => setShowEmailModal(false)}
+      />
     </>
   );
 }
