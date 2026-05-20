@@ -1,8 +1,8 @@
-# دليل إعداد Privy + Stellar Testnet
+# دليل إعداد Privy + Stellar Testnet (Deterministic Derivation)
 
 دمج Privy لتسجيل الدخول بالإيميل وإنشاء محافظ Stellar تلقائياً.
 
-## نظرة عامة
+## نظرة عامة على البنية
 
 ```
 المستخدم يضغط "سجّل بالإيميل"
@@ -11,44 +11,57 @@ useLoginWithEmail.sendCode({ email })  → Privy يرسل OTP حقيقي
         ↓
 useLoginWithEmail.loginWithCode({ code })  → تسجيل الدخول
         ↓
-useCreateWallet.createWallet({ chainType: 'stellar' })  → محفظة في Privy TEE
+Privy ينشئ ETH wallet افتراضياً (لا يدعم Stellar مباشرة في React SDK)
         ↓
-كل معاملة Soroban: tx.hash() → wallet.rawSign({ hash }) → DecoratedSignature → submit
+نطلب من ETH wallet توقيع رسالة ثابتة عبر signMessage
+        ↓
+نأخذ التوقيع → SHA-256 → 32 bytes → Ed25519 seed → Stellar Keypair (G...)
+        ↓
+نوقّع كل معاملات Soroban محلياً بـ stellar-sdk
 ```
+
+## لماذا هذه الطريقة؟
+
+Privy v3 React SDK **لا يدعم خلق محفظة Stellar** كـ wallet ثانٍ بجانب الـ Ethereum
+(يرفض بـ `Error: User already has an embedded wallet`). هذا قيد فعلي.
+
+### الحل العملي
+- نستخدم Privy كـ **مزوّد هوية** (إيميل + OTP)
+- نستخرج Stellar Keypair بشكل **deterministic** من توقيع ETH للـ embedded wallet
+- التوقيع الـ deterministic ECDSA يضمن نفس النتيجة في كل تسجيل دخول
+- النتيجة: **نفس الإيميل = نفس عنوان Stellar دائماً**، حتى من جهاز آخر
+
+### مزايا هذه الطريقة
+
+✅ تعمل على أي خطة Privy (مجانية أو مدفوعة)  
+✅ لا تحتاج تفعيل Stellar في Privy Dashboard  
+✅ deterministic — المستخدم لا يفقد محفظته بين الجلسات  
+✅ سريع — لا API calls إضافية  
+✅ آمن — المفتاح الخاص لا يُكشف للسيرفر
+
+### تحديات
+
+⚠️ المفتاح الخاص يعيش مؤقتاً في ذاكرة المتصفح أثناء الجلسة (لا في localStorage)  
+⚠️ يحتاج المستخدم signMessage مرة واحدة في كل جلسة جديدة  
+⚠️ تغيير `STELLAR_DERIVATION_MESSAGE` سيُغيّر كل عناوين المستخدمين الحاليين  
+⚠️ للإنتاج بأموال حقيقية، يُنصح بـ Privy TEE أو backend مع Stellar SDK  
 
 ## الإعداد لأول مرة
 
 ### 1. أنشئ تطبيق Privy
 
-1. اذهب إلى [dashboard.privy.io](https://dashboard.privy.io) وأنشئ حساباً
+1. اذهب إلى [dashboard.privy.io](https://dashboard.privy.io)
 2. انقر **+ New App** ثم اختر اسماً (مثل "Nalax")
-3. انسخ **App ID** من صفحة الإعدادات
+3. انسخ **App ID**
 
-### 2. ⚠️ تفعيل Stellar (Tier 2) — الأهم
-
-Stellar في Privy تنتمي لـ **Tier 2** chains، وهذا يعني:
-- **لا تظهر** في "Wallet Configuration" الافتراضية بـ Dashboard (هذا طبيعي!)
-- تحتاج لتفعيلها بأحد الطرق التالية:
-
-#### الخيار أ: أحدث Dashboard (إن وُجد)
-1. اذهب إلى **Wallets** أو **Chain Configuration**
-2. ابحث عن قسم **Other chains** أو **Tier 2 Chains**
-3. فعّل **Stellar** + اختر **Testnet**
-
-#### الخيار ب: تواصل مع دعم Privy
-- في Privy Dashboard، استخدم زر **Help / Support** (أيقونة ?)
-- أرسل: *"Please enable Stellar (Tier 2) for my app ID: xxxxxxx (testnet)"*
-- عادةً يفعّلونها خلال ساعات
-
-#### الخيار ج: عبر API مباشرة (للمطوّرين المتقدمين)
-يمكن استدعاء `POST /v1/wallets` بـ `chain_type: 'stellar'` على REST API
-([وثائق Privy](https://docs.privy.io/api-reference/wallets/create))، يتطلب server-side مع app secret.
-
-### 3. فعّل تسجيل الدخول بالإيميل
+### 2. فعّل تسجيل الدخول بالإيميل
 
 في **Login Methods** → فعّل **Email**.
 
-### 4. أضِف الـ App ID إلى مشروعك
+> **ملاحظة مهمة:** لا تحتاج تفعيل Stellar أو أي إعدادات خاصة. الـ Ethereum embedded wallet
+> الافتراضي يكفي — نحن نستخدمه فقط لتوقيع رسالة استخراج Stellar.
+
+### 3. أضِف الـ App ID إلى مشروعك
 
 ```bash
 # .env.local
@@ -56,7 +69,7 @@ VITE_PRIVY_APP_ID=cm5xxxxxxxxxxxxxxxxx
 VITE_PINATA_JWT=your_pinata_jwt
 ```
 
-### 5. ثبّت الحزم وشغّل
+### 4. ثبّت الحزم وشغّل
 
 ```bash
 npm install
@@ -65,78 +78,72 @@ npm run dev
 
 ## كيف يعمل التوقيع على Stellar؟
 
-Stellar في Privy تنتمي لـ **Tier 2** (Ed25519 curve):
-
 ```typescript
-const tx = TransactionBuilder.fromXDR(xdrString, Networks.TESTNET);
-const txHash = tx.hash();                                       // SHA-256 hash
-const { signature } = await wallet.rawSign({                    // Privy raw_sign
-  hash: '0x' + txHash.toString('hex')
+// src/lib/privy-stellar.ts
+const sigHex = await ethWallet.signMessage({ 
+  message: STELLAR_DERIVATION_MESSAGE 
 });
-const hint = Keypair.fromPublicKey(wallet.address).signatureHint();
-tx.signatures.push(new xdr.DecoratedSignature({ hint, signature }));
-return tx.toXDR();
+const seed32 = stellarHash(hexToBuffer(sigHex)); // SHA-256
+const stellarKp = Keypair.fromRawEd25519Seed(seed32);
+// stellarKp.publicKey() = G... address
 ```
 
-## استكشاف الأخطاء
+عند توقيع معاملات Soroban:
 
-### المشكلة: ظهور عنوان `0x...` بدلاً من `G...`
+```typescript
+// src/lib/stellar.ts (داخلياً)
+if (_privySignFn) {
+  signedTxXdr = await _privySignFn(transaction.toXDR());
+  // ↓ يستدعي signStellarTransactionWithPrivy
+  // ↓ يوقّع محلياً بـ tx.sign(stellarKeypair)
+}
+```
 
-**السبب:** Privy ينشئ محفظة Ethereum افتراضياً ولم يُنشئ Stellar.
+## التشخيص في Console
 
-**الحل:**
-1. **تأكد أن Stellar مفعّلة** في تطبيقك على Privy Dashboard (راجع الخطوة 2 أعلاه)
-2. افتح Console وابحث عن سجلات `[privy:Bridge]` و `[privy:EmailAuthModal]` — تعرض قائمة المحافظ التي رجعت من Privy
-3. إذا رأيت Ethereum فقط ولم تظهر Stellar → الميزة معطّلة في حسابك على Privy
-4. الكود الحالي يرفض الاتصال بمحافظ ETH ويُظهر شاشة خطأ واضحة
-
-### "VITE_PRIVY_APP_ID غير مضبوط"
-أضف `VITE_PRIVY_APP_ID=...` في `.env.local` ثم أعد تشغيل dev server.
-
-### "محفظة Privy لا تدعم rawSign"
-- تأكد من أن إصدار `@privy-io/react-auth` هو `^3.0.0`+
-- تأكد من تفعيل **Stellar** في Privy Dashboard (Tier 2)
-
-### "تعذّر إنشاء محفظة Stellar — انتهت المهلة"
-بعد 10 ثوانٍ من المحاولة، الكود يُظهر شاشة خطأ تطلب تفعيل Stellar في Privy.
-
-### Console Debug
-
-افتح browser console بعد تسجيل الدخول. سترى:
+افتح DevTools → Console بعد تسجيل الدخول:
 
 ```
 [privy:Bridge] 1 wallet(s):
-  #0: chainType=stellar, walletClientType=privy, address=GABC..., hasRawSign=true
+  #0: chainType=ethereum, walletClientType=privy, address=0xE57A..., hasSignMessage=true
+[privy] Stellar address derived: GABCXYZ...
+✅ محفظة جديدة مُموَّلة: GABCXYZ...
 ```
-
-إذا رأيت `chainType=ethereum` بدلاً من `stellar` → Stellar غير مفعّلة في Privy.
 
 ## الإنتاج (Production)
 
 عند الانتقال للـ mainnet:
 
-1. في Privy Dashboard → بدّل **Stellar Testnet** → **Stellar Mainnet**
-2. في `src/lib/stellar.ts` بدّل:
+1. غيّر `STELLAR_DERIVATION_MESSAGE` إلى نسخة v2 مع `Network: Stellar Mainnet`
+2. في `src/lib/stellar.ts`:
    ```typescript
    const NETWORK_PASSPHRASE = Networks.PUBLIC;
    const SERVER_URL = 'https://soroban-rpc.stellar.org';
    ```
 3. أعد نشر العقد على mainnet وحدّث `CONTRACT_ID`
-4. أزل تمويل Friendbot التلقائي من `EmailAuthModal.tsx` (testnet فقط)
+4. أزل تمويل Friendbot التلقائي من `EmailAuthModal.tsx`
 
-## الملفات المهمة
+## استكشاف الأخطاء
 
-| الملف | الوظيفة |
-|-------|---------|
-| `src/lib/privy.tsx` | تكوين PrivyProvider بـ v3 syntax |
-| `src/lib/privy-stellar.ts` | محوّل التوقيع: XDR → rawSign → DecoratedSignature |
-| `src/lib/stellar.ts` | `registerPrivySigner` يحقن دالة Privy |
-| `src/components/EmailAuthModal.tsx` | UI تسجيل + إنشاء + معالجة الأخطاء |
-| `src/main.tsx` | `PrivyWalletBridge` يربط Privy ↔ useWallet |
+### المستخدم يرى عنوان `0x...` بدلاً من `G...`
+- هذا يعني أن العنوان الـ ETH يُعرض بدلاً من Stellar.
+- تحقق من Console لرسالة `[privy] Stellar address derived: G...`
+- إن لم تظهر، فالـ derivation فشل — راجع رسائل الخطأ
+
+### "محفظة Privy لا تدعم signMessage"
+- إصدار قديم من `@privy-io/react-auth`. تأكد من `^3.0.0`
+- في `package.json`: `"@privy-io/react-auth": "^3.0.0"`
+
+### "VITE_PRIVY_APP_ID غير مضبوط"
+أضف `VITE_PRIVY_APP_ID=...` في `.env.local` وأعد تشغيل dev server.
+
+### المستخدم يحصل على عنوان مختلف بين الجلسات
+- ECDSA لازم أن تكون deterministic. Privy تستخدم RFC 6979 لذلك deterministic.
+- لو حصل هذا، أَبلغ عبر issue — يُمكن إضافة caching في localStorage كحلّ بديل.
 
 ## الموارد
 
-- [Privy Docs — Tier 2 Chains](https://docs.privy.io/recipes/use-tier-2)
-- [Privy Docs — Quickstart React](https://docs.privy.io/guide/quickstart)
-- [Privy Docs — Chain Support](https://docs.privy.io/wallets/overview/chains)
-- [Stellar SDK Docs](https://stellar.github.io/js-stellar-sdk/)
+- [Privy Docs — React Quickstart](https://docs.privy.io/guide/quickstart)
+- [Privy Docs — useLoginWithEmail](https://docs.privy.io/basics/react/setup)
+- [Stellar SDK Keypair](https://stellar.github.io/js-stellar-sdk/Keypair.html)
+- [RFC 6979 — Deterministic ECDSA](https://datatracker.ietf.org/doc/html/rfc6979)

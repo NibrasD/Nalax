@@ -1,4 +1,4 @@
-import { StrictMode, useEffect } from 'react';
+import { StrictMode, useEffect, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 
@@ -21,10 +21,13 @@ import { CreateChannel } from './pages/CreateChannel';
 
 import { PrivyProvider, usePrivy, useWallets } from './lib/privy';
 import {
-  findStellarWallet,
+  findEthereumWallet,
   signStellarTransactionWithPrivy,
   isStellarAddress,
   debugWallets,
+  deriveStellarKeypairFromPrivy,
+  setActiveStellarKeypair,
+  getActiveStellarAddress,
 } from './lib/privy-stellar';
 import { useWallet } from './store/useWallet';
 import { registerPrivySigner, clearPrivySigner } from './lib/stellar';
@@ -36,42 +39,69 @@ import './index.css';
  * PrivyWalletBridge
  * ───────────────────
  * يربط Privy ↔ useWallet ↔ stellar.ts.
- * **مهم**: نتصل فقط بمحفظة Stellar حقيقية (يبدأ عنوانها بـ G).
- * إن أنشأت Privy محفظة Ethereum (0x...)، نتجاهلها هنا.
+ *
+ * عند العودة لجلسة موجودة (refresh للصفحة):
+ *   - Privy يستعيد ETH wallet تلقائياً
+ *   - نُعيد استخراج Stellar keypair من توقيعها (silent إن أمكن)
+ *   - نسجّل الـ signer في stellar.ts
  */
 function PrivyWalletBridge() {
   const { authenticated, ready } = usePrivy();
   const { wallets } = useWallets();
   const { connectWithPrivy, disconnect, provider, publicKey } = useWallet();
+  const isReDeriving = useRef(false);
 
   useEffect(() => {
     if (!ready) return;
 
-    // طباعة المحافظ في كل تحديث (مفيد للـ debug)
     if (authenticated) debugWallets(wallets, 'Bridge');
 
-    const stellar = findStellarWallet(wallets);
+    const ethWallet = findEthereumWallet(wallets);
 
-    if (
-      authenticated &&
-      stellar?.address &&
-      isStellarAddress(stellar.address)
-    ) {
-      // ربط دالة التوقيع الحقيقية بـ stellar.ts
-      registerPrivySigner(stellar.address, async (xdrString: string) => {
-        return signStellarTransactionWithPrivy(xdrString, stellar);
-      });
+    // الحالة 1: مستخدم مُسجّل ولديه ETH wallet
+    if (authenticated && ethWallet?.address) {
+      const cachedAddr = getActiveStellarAddress();
 
-      // تحديث useWallet إن لم يكن متزامناً
-      if (provider !== 'privy' || publicKey !== stellar.address) {
-        connectWithPrivy(stellar.address);
+      // إذا الـ keypair موجود في الذاكرة بالفعل، فقط نسجّل الـ signer
+      if (cachedAddr && isStellarAddress(cachedAddr)) {
+        registerPrivySigner(cachedAddr, async (xdrString: string) => {
+          return signStellarTransactionWithPrivy(xdrString, null);
+        });
+        if (provider !== 'privy' || publicKey !== cachedAddr) {
+          connectWithPrivy(cachedAddr);
+        }
+        return;
       }
-    } else if (!authenticated && provider === 'privy') {
+
+      // أول تسجيل دخول — أُنشئ stellar keypair وقم بالربط
+      // (EmailAuthModal يفعل هذا أيضاً، لكن نحتاج fallback عند refresh)
+      if (!isReDeriving.current) {
+        isReDeriving.current = true;
+        (async () => {
+          try {
+            const { keypair, address } = await deriveStellarKeypairFromPrivy(
+              ethWallet
+            );
+            setActiveStellarKeypair(keypair);
+            registerPrivySigner(address, async (xdrString: string) => {
+              return signStellarTransactionWithPrivy(xdrString, null);
+            });
+            connectWithPrivy(address);
+            console.info('[Bridge] Stellar address re-derived:', address);
+          } catch (e) {
+            console.error('[Bridge] فشل إعادة استخراج Stellar:', e);
+          } finally {
+            isReDeriving.current = false;
+          }
+        })();
+      }
+    }
+    // الحالة 2: المستخدم سجّل خروجه
+    else if (!authenticated && provider === 'privy') {
       clearPrivySigner();
+      setActiveStellarKeypair(null);
       disconnect();
     }
-    // ⚠️ إن كان authenticated ولا توجد محفظة Stellar، لا نفعل شيئاً.
-    // EmailAuthModal سيتولى إنشاءها أو إظهار خطأ.
   }, [authenticated, ready, wallets, provider, publicKey, connectWithPrivy, disconnect]);
 
   return null;
