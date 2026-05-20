@@ -20,7 +20,12 @@ import { ChannelDetail } from './pages/ChannelDetail';
 import { CreateChannel } from './pages/CreateChannel';
 
 import { PrivyProvider, usePrivy, useWallets } from './lib/privy';
-import { findStellarWallet, signStellarTransactionWithPrivy } from './lib/privy-stellar';
+import {
+  findStellarWallet,
+  signStellarTransactionWithPrivy,
+  isStellarAddress,
+  debugWallets,
+} from './lib/privy-stellar';
 import { useWallet } from './store/useWallet';
 import { registerPrivySigner, clearPrivySigner } from './lib/stellar';
 
@@ -30,35 +35,44 @@ import './index.css';
 /**
  * PrivyWalletBridge
  * ───────────────────
- * يربط حالة Privy الحقيقية بـ useWallet:
- * - عند تسجيل الدخول → يسجّل signer Privy لاستخدامه في stellar.ts
- * - عند تسجيل الخروج → ينظّف الـ signer ويُعيد تعيين useWallet
+ * يربط Privy ↔ useWallet ↔ stellar.ts.
+ * **مهم**: نتصل فقط بمحفظة Stellar حقيقية (يبدأ عنوانها بـ G).
+ * إن أنشأت Privy محفظة Ethereum (0x...)، نتجاهلها هنا.
  */
 function PrivyWalletBridge() {
   const { authenticated, ready } = usePrivy();
   const { wallets } = useWallets();
-  const { connectWithPrivy, disconnect, provider } = useWallet();
+  const { connectWithPrivy, disconnect, provider, publicKey } = useWallet();
 
   useEffect(() => {
     if (!ready) return;
 
+    // طباعة المحافظ في كل تحديث (مفيد للـ debug)
+    if (authenticated) debugWallets(wallets, 'Bridge');
+
     const stellar = findStellarWallet(wallets);
 
-    if (authenticated && stellar?.address) {
+    if (
+      authenticated &&
+      stellar?.address &&
+      isStellarAddress(stellar.address)
+    ) {
       // ربط دالة التوقيع الحقيقية بـ stellar.ts
       registerPrivySigner(stellar.address, async (xdrString: string) => {
         return signStellarTransactionWithPrivy(xdrString, stellar);
       });
-      // ضمان أن useWallet متزامن مع محفظة Privy
-      if (provider !== 'privy') {
+
+      // تحديث useWallet إن لم يكن متزامناً
+      if (provider !== 'privy' || publicKey !== stellar.address) {
         connectWithPrivy(stellar.address);
       }
     } else if (!authenticated && provider === 'privy') {
-      // المستخدم سجّل خروجه من Privy
       clearPrivySigner();
       disconnect();
     }
-  }, [authenticated, ready, wallets, provider, connectWithPrivy, disconnect]);
+    // ⚠️ إن كان authenticated ولا توجد محفظة Stellar، لا نفعل شيئاً.
+    // EmailAuthModal سيتولى إنشاءها أو إظهار خطأ.
+  }, [authenticated, ready, wallets, provider, publicKey, connectWithPrivy, disconnect]);
 
   return null;
 }

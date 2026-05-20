@@ -2,13 +2,6 @@
  * Privy ↔ Stellar Bridge
  * ────────────────────────────
  * يحوّل توقيعات Privy raw_sign إلى توقيعات XDR صالحة على شبكة Stellar.
- *
- * كيف يعمل التوقيع على Stellar:
- *   1. نبني المعاملة (TransactionBuilder)
- *   2. نحسب hash للمعاملة → tx.hash() = SHA-256(network_id + envelope_type + tx)
- *   3. نطلب من Privy توقيع الـ hash بـ Ed25519 (raw_sign)
- *   4. نبني DecoratedSignature(hint = آخر 4 bytes من المفتاح العام، signature)
- *   5. نضيفها لـ tx.signatures ونعيد XDR
  */
 
 import { Buffer } from 'buffer';
@@ -20,53 +13,78 @@ import {
   FeeBumpTransaction,
   Transaction,
 } from '@stellar/stellar-sdk';
-import type { ConnectedWallet } from '@privy-io/react-auth';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
-/**
- * أي wallet object من Privy يدعم rawSign على chain من Tier 2 (مثل Stellar).
- * Privy يضيف الـ method ديناميكياً للمحافظ من نوع Tier 2.
- */
 export interface StellarWalletLike {
   address: string;
-  chainType: 'stellar' | string;
+  chainType?: 'stellar' | string;
   rawSign?: (input: { hash: string }) => Promise<{ signature: string }>;
-  // بعض إصدارات Privy تستخدم signRawHash بدلاً من rawSign
   signRawHash?: (input: { hash: string }) => Promise<{ signature: string }>;
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 /**
- * استخراج محفظة Stellar من قائمة محافظ Privy.
+ * هل العنوان عنوان Stellar صالح؟
+ * Stellar pubkeys: تبدأ بـ G وطولها 56 حرفاً (Strkey/Base32).
  */
-export function findStellarWallet(
-  wallets: readonly ConnectedWallet[] | undefined
-): StellarWalletLike | null {
-  if (!wallets || wallets.length === 0) return null;
-  const stellar = wallets.find((w: any) => w.chainType === 'stellar');
-  return (stellar as any as StellarWalletLike) ?? null;
+export function isStellarAddress(addr: unknown): addr is string {
+  return (
+    typeof addr === 'string' &&
+    addr.length === 56 &&
+    addr.startsWith('G') &&
+    /^[A-Z2-7]+$/.test(addr)
+  );
 }
 
 /**
- * تحويل Buffer إلى hex string بصيغة 0x... كما تتوقع Privy.
+ * استخراج محفظة Stellar من قائمة محافظ Privy.
+ * يجرب عدة معايير لزيادة الموثوقية بين إصدارات SDK المختلفة:
+ *   1. chainType === 'stellar'
+ *   2. عنوان يبدأ بـ G وطوله 56
  */
+export function findStellarWallet(
+  wallets: readonly any[] | undefined
+): StellarWalletLike | null {
+  if (!wallets || wallets.length === 0) return null;
+
+  const byChainType = wallets.find((w: any) => w?.chainType === 'stellar');
+  if (byChainType) return byChainType as StellarWalletLike;
+
+  const byAddrShape = wallets.find((w: any) => isStellarAddress(w?.address));
+  if (byAddrShape) return byAddrShape as StellarWalletLike;
+
+  return null;
+}
+
+/**
+ * طباعة قائمة المحافظ في console لمساعدة الـ debugging.
+ */
+export function debugWallets(wallets: readonly any[] | undefined, label = 'wallets') {
+  if (!wallets || wallets.length === 0) {
+    console.info(`[privy:${label}] empty wallets list`);
+    return;
+  }
+  console.info(`[privy:${label}] ${wallets.length} wallet(s):`);
+  wallets.forEach((w: any, i: number) => {
+    console.info(
+      `  #${i}: chainType=${w?.chainType ?? '?'}, ` +
+      `walletClientType=${w?.walletClientType ?? '?'}, ` +
+      `address=${w?.address ?? '?'}, ` +
+      `hasRawSign=${typeof w?.rawSign === 'function' || typeof w?.signRawHash === 'function'}`
+    );
+  });
+}
+
 function bufferToHex(buf: Buffer | Uint8Array): string {
   return '0x' + Buffer.from(buf).toString('hex');
 }
 
-/**
- * تحويل hex string من Privy إلى Buffer.
- */
 function hexToBuffer(hex: string): Buffer {
   return Buffer.from(hex.replace(/^0x/, ''), 'hex');
 }
 
-/**
- * توقيع hash خام عبر Privy. يدعم كلا الاسمين (rawSign أو signRawHash)
- * احتياطاً لاختلاف الإصدارات.
- */
 async function privyRawSign(
   wallet: StellarWalletLike,
   hash: Buffer
@@ -87,62 +105,44 @@ async function privyRawSign(
 
 // ─── Main Signing Function ──────────────────────────────────────────────────
 
-/**
- * توقيع معاملة Stellar XDR بمفتاح المستخدم في Privy.
- *
- * @param xdrString  المعاملة المُجمَّعة (بعد simulate إن كانت Soroban)
- * @param wallet     محفظة Stellar من Privy useWallets()
- * @param networkPassphrase  افتراضياً Networks.TESTNET
- * @returns          XDR موقَّع جاهز لـ submitTransaction
- */
 export async function signStellarTransactionWithPrivy(
   xdrString: string,
   wallet: StellarWalletLike,
   networkPassphrase: string = Networks.TESTNET
 ): Promise<string> {
-  if (!wallet || wallet.chainType !== 'stellar') {
-    throw new Error('Wallet ليست من نوع Stellar.');
+  if (!wallet) {
+    throw new Error('Wallet ليست متوفرة.');
   }
-  if (!wallet.address) {
-    throw new Error('عنوان محفظة Stellar غير متوفر.');
+  if (!isStellarAddress(wallet.address)) {
+    throw new Error(
+      `العنوان "${wallet.address}" ليس عنوان Stellar صالح. ` +
+      `يبدو أن Privy لم تنشئ محفظة Stellar — تحقق من إعدادات Privy.`
+    );
   }
 
-  // 1. parse الـ XDR إلى Transaction object
   const tx = TransactionBuilder.fromXDR(xdrString, networkPassphrase) as
     | Transaction
     | FeeBumpTransaction;
 
-  // 2. حساب hash المعاملة (هذا ما سيُوقَّع)
-  const txHash = tx.hash(); // Buffer of 32 bytes
-
-  // 3. توقيع الـ hash عبر Privy raw_sign
+  const txHash = tx.hash();
   const signature = await privyRawSign(wallet, txHash);
 
-  // 4. بناء signature hint (آخر 4 bytes من المفتاح العام)
   const keypair = Keypair.fromPublicKey(wallet.address);
   const hint = keypair.signatureHint();
 
-  // 5. إضافة DecoratedSignature إلى المعاملة
   const decoratedSig = new xdr.DecoratedSignature({
     hint,
     signature,
   });
   tx.signatures.push(decoratedSig);
 
-  // 6. إعادة XDR موقَّع
   return tx.toXDR();
 }
 
-/**
- * مساعد للتحقق من صلاحية محفظة Privy للتوقيع على Stellar.
- */
 export function isStellarWalletReady(wallet: any): wallet is StellarWalletLike {
   return (
     !!wallet &&
-    wallet.chainType === 'stellar' &&
-    typeof wallet.address === 'string' &&
-    wallet.address.startsWith('G') &&
-    wallet.address.length === 56 &&
+    isStellarAddress(wallet.address) &&
     typeof (wallet.rawSign || wallet.signRawHash) === 'function'
   );
 }

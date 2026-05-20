@@ -1,22 +1,18 @@
 /**
- * Privy Integration Layer — Real SDK
- * ────────────────────────────────────
- * يستخدم @privy-io/react-auth الحقيقي. لا mock.
- *
- * Stellar في Privy = Tier 2 chain (Ed25519). الدمج يتم عبر:
- *   1. تسجيل الدخول بالإيميل: useLoginWithEmail()
- *   2. إنشاء محفظة Stellar: useCreateWallet({ chainType: 'stellar' })
- *   3. التوقيع: wallet.rawSign({ hash }) → SHA-256 hash للمعاملة
- *   4. بناء التوقيع المُزخرَف وحقنه في XDR
- *
+ * Privy Integration Layer — Real SDK (v3)
+ * ─────────────────────────────────────────
  * المرجع: https://docs.privy.io/recipes/use-tier-2
+ *
+ * ملاحظات Stellar في Privy:
+ *  - Stellar = Tier 2 chain (لا تظهر في Wallet Configuration بـ Dashboard)
+ *  - يتم إنشاء المحفظة عبر useCreateWallet({ chainType: 'stellar' })
+ *  - يجب تعطيل auto-creation لـ Ethereum في الإعدادات حتى لا يظهر 0x...
  */
 
 import React from 'react';
 import { PrivyProvider as RealPrivyProvider } from '@privy-io/react-auth';
 
 // ─── Re-exports من Privy SDK ────────────────────────────────────────────────
-// نُصدِّر الـ hooks الحقيقية كي تُستخدم في باقي التطبيق
 export {
   usePrivy,
   useLoginWithEmail,
@@ -31,10 +27,6 @@ interface NalaxPrivyProviderProps {
   children: React.ReactNode;
 }
 
-/**
- * Provider مُهيَّأ مسبقاً لـ Nalax مع Stellar Testnet.
- * يقرأ Privy App ID من VITE_PRIVY_APP_ID.
- */
 export function PrivyProvider({ children }: NalaxPrivyProviderProps) {
   const appId = import.meta.env.VITE_PRIVY_APP_ID;
 
@@ -53,19 +45,20 @@ export function PrivyProvider({ children }: NalaxPrivyProviderProps) {
         appearance: {
           theme: 'dark',
           accentColor: '#5B5EFF',
-          logo: 'https://nalax.com/logo.png',
           showWalletLoginFirst: false,
         },
-        // Stellar (Tier 2) لا يدعم createOnLogin التلقائي.
-        // نُنشئ المحفظة يدوياً بعد تسجيل الدخول عبر useCreateWallet.
+        // ⚠️ مهم: في v3 الإعداد لكل سلسلة على حدة (وليس createOnLogin مفرد)
+        // نُعطّل إنشاء Ethereum/Solana التلقائي حتى لا يظهر عنوان 0x...
+        // ثم ننشئ محفظة Stellar يدوياً عبر useCreateWallet({chainType:'stellar'})
         embeddedWallets: {
-          createOnLogin: 'off',
+          ethereum: {
+            createOnLogin: 'off',
+          },
+          solana: {
+            createOnLogin: 'off',
+          },
         },
-        // تعطيل MFA للبداية (يمكن تفعيلها لاحقاً للمعاملات الحساسة)
-        mfa: {
-          noPromptOnMfaRequired: false,
-        },
-      }}
+      } as any}
     >
       {children}
     </RealPrivyProvider>

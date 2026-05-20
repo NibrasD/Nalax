@@ -1,10 +1,14 @@
 /**
  * EmailAuthModal — تسجيل دخول حقيقي عبر Privy
  * ──────────────────────────────────────────────
- * يستخدم @privy-io/react-auth الحقيقي:
- *   1. useLoginWithEmail().sendCode({ email })  → Privy يرسل OTP حقيقي
- *   2. useLoginWithEmail().loginWithCode({ code }) → تسجيل الدخول
- *   3. useCreateWallet().createWallet({ chainType: 'stellar' }) → محفظة Stellar
+ *   1. useLoginWithEmail().sendCode({ email })  → Privy يرسل OTP
+ *   2. useLoginWithEmail().loginWithCode({ code })
+ *   3. useCreateWallet().createWallet({ chainType: 'stellar' })
+ *
+ * يتعامل بأمان مع حالات:
+ *   - Privy ينشئ ETH تلقائياً (لو الإعداد لم يُعطّله)
+ *   - createWallet لا يدعم Stellar (يُظهر خطأ واضح)
+ *   - تأخر تحديث useWallets بعد الإنشاء (يستمع للتغيرات)
  */
 
 import { useState, useRef, useEffect } from 'react';
@@ -17,6 +21,7 @@ import {
   Wallet,
   Shield,
   AlertTriangle,
+  AlertCircle,
 } from 'lucide-react';
 import {
   useLoginWithEmail,
@@ -25,31 +30,32 @@ import {
   useWallets,
 } from '../lib/privy';
 import { useWallet } from '../store/useWallet';
-import { findStellarWallet } from '../lib/privy-stellar';
+import { findStellarWallet, debugWallets, isStellarAddress } from '../lib/privy-stellar';
 
 interface EmailAuthModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-type Step = 'email' | 'otp' | 'creating-wallet' | 'success';
+type Step = 'email' | 'otp' | 'creating-wallet' | 'success' | 'wallet-error';
 
 export function EmailAuthModal({ isOpen, onClose }: EmailAuthModalProps) {
-  const { authenticated, user, ready } = usePrivy();
+  const { authenticated, ready } = usePrivy();
   const { sendCode, loginWithCode, state } = useLoginWithEmail();
   const { createWallet } = useCreateWallet();
   const { wallets } = useWallets();
   const connectWithPrivy = useWallet((s) => s.connectWithPrivy);
 
   const [email, setEmail] = useState('');
-  const [otp, setOtp] = useState(['', '', '', '', '', '', '', '']); // Privy OTP عادةً 6-8 أرقام
+  const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [step, setStep] = useState<Step>('email');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [stellarAddress, setStellarAddress] = useState<string | null>(null);
+  const [hasTriedCreate, setHasTriedCreate] = useState(false);
 
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
-  const otpLength = 6; // Privy افتراضياً يستخدم 6 أرقام
+  const otpLength = 6;
 
   // ── إعادة تعيين الحالة عند الفتح/الإغلاق ─────────────────────────────────────
   useEffect(() => {
@@ -60,61 +66,95 @@ export function EmailAuthModal({ isOpen, onClose }: EmailAuthModalProps) {
       setError(null);
       setLoading(false);
       setStellarAddress(null);
+      setHasTriedCreate(false);
     }
   }, [isOpen]);
 
-  // ── متابعة حالة Privy: عند تسجيل الدخول → إنشاء محفظة Stellar ───────────────
+  // ── متابعة المحافظ — يطبع ما يجده في كل تحديث ───────────────────────────────
+  useEffect(() => {
+    if (authenticated) debugWallets(wallets, 'EmailAuthModal');
+  }, [wallets, authenticated]);
+
+  // ── بعد تسجيل الدخول → ابحث عن Stellar أو أنشئها ────────────────────────────
   useEffect(() => {
     if (!authenticated || !ready) return;
     if (step !== 'otp' && step !== 'creating-wallet') return;
 
-    // المستخدم سُجّل دخوله. نتحقق من وجود محفظة Stellar
-    const existingStellar = findStellarWallet(wallets);
-
-    if (existingStellar) {
-      // محفظة Stellar موجودة بالفعل
-      handleStellarReady(existingStellar.address);
+    // 1) محفظة Stellar موجودة؟ → جاهز
+    const existing = findStellarWallet(wallets);
+    if (existing && isStellarAddress(existing.address)) {
+      handleStellarReady(existing.address);
       return;
     }
 
-    // لا توجد محفظة Stellar → أنشئها الآن
-    setStep('creating-wallet');
-    (async () => {
-      try {
-        const result: any = await createWallet({ chainType: 'stellar' as any });
-        const addr = result?.address || result?.wallet?.address;
-        if (addr) {
-          handleStellarReady(addr);
-        } else {
-          // قد يحتاج بضع ms لتحديث useWallets
-          // سيُلتقط في الـ effect التالي
+    // 2) لم نحاول الإنشاء بعد؟ → جرّب
+    if (!hasTriedCreate) {
+      setHasTriedCreate(true);
+      setStep('creating-wallet');
+      (async () => {
+        try {
+          // محاولة إنشاء محفظة Stellar صراحة
+          const result: any = await createWallet({ chainType: 'stellar' as any } as any);
+          console.info('[privy] createWallet result:', result);
+          // قد ترجع المحفظة في result أو في result.wallet أو يتم تحديث useWallets فقط
+          const addr = result?.address || result?.wallet?.address;
+          if (isStellarAddress(addr)) {
+            handleStellarReady(addr);
+            return;
+          }
+          // العنوان ليس Stellar → ربما تأخر التحديث، ننتظر useEffect الـ wallets
+          console.warn(
+            '[privy] createWallet أرجع عنوان غير Stellar:',
+            addr,
+            '\nسننتظر تحديث useWallets...'
+          );
+        } catch (e: any) {
+          console.error('[privy] createWallet error:', e);
+          setStep('wallet-error');
+          setError(
+            e?.message ||
+              'فشل إنشاء محفظة Stellar. ربما إصدار Privy SDK لا يدعم Stellar مباشرة، أو الميزة معطّلة في تطبيقك على Privy Dashboard.'
+          );
         }
-      } catch (e: any) {
-        console.error('createWallet error:', e);
-        setError(e?.message || 'فشل إنشاء محفظة Stellar.');
-      }
-    })();
-  }, [authenticated, ready, wallets, step]);
+      })();
+    }
+  }, [authenticated, ready, wallets, step, hasTriedCreate]);
 
-  // ── متابعة wallets[] لو تأخّر إنشاء محفظة ───────────────────────────────────
+  // ── انتظار تحديث wallets بعد createWallet ───────────────────────────────────
   useEffect(() => {
     if (step !== 'creating-wallet') return;
     const stellar = findStellarWallet(wallets);
-    if (stellar?.address) {
+    if (stellar?.address && isStellarAddress(stellar.address)) {
       handleStellarReady(stellar.address);
     }
   }, [wallets, step]);
+
+  // ── timeout لإظهار خطأ لو لم تُنشأ المحفظة خلال 10 ثوان ────────────────────
+  useEffect(() => {
+    if (step !== 'creating-wallet') return;
+    const timer = setTimeout(() => {
+      const stellar = findStellarWallet(wallets);
+      if (!stellar) {
+        setStep('wallet-error');
+        setError(
+          'انتهت المهلة المحدّدة دون إنشاء محفظة Stellar. ' +
+          'تحقق من Privy Dashboard أن Stellar مفعّلة (Tier 2) لتطبيقك.'
+        );
+      }
+    }, 10000);
+    return () => clearTimeout(timer);
+  }, [step, wallets]);
 
   function handleStellarReady(address: string) {
     setStellarAddress(address);
     setStep('success');
     connectWithPrivy(address);
 
-    // تمويل تلقائي من Friendbot على testnet (آمن — Friendbot يُموّل أي عنوان جديد)
+    // تمويل تلقائي من Friendbot على testnet
     fetch(`https://friendbot.stellar.org?addr=${address}`)
       .then(() => console.info(`✅ محفظة جديدة مُموَّلة: ${address}`))
       .catch(() => {
-        // Friendbot قد يفشل لو الحساب موجود بالفعل — هذا طبيعي
+        // متوقع لو الحساب مُموَّل سابقاً
       });
 
     setTimeout(() => onClose(), 2200);
@@ -122,7 +162,6 @@ export function EmailAuthModal({ isOpen, onClose }: EmailAuthModalProps) {
 
   if (!isOpen) return null;
 
-  // ── التحقق من Privy App ID ──────────────────────────────────────────────────
   const hasAppId = !!import.meta.env.VITE_PRIVY_APP_ID &&
                    import.meta.env.VITE_PRIVY_APP_ID !== 'your_privy_app_id_here';
 
@@ -151,11 +190,7 @@ export function EmailAuthModal({ isOpen, onClose }: EmailAuthModalProps) {
     const newOtp = [...otp];
     newOtp[index] = value.slice(-1);
     setOtp(newOtp);
-
-    if (value && index < otpLength - 1) {
-      otpRefs.current[index + 1]?.focus();
-    }
-    // إرسال تلقائي عند إكمال 6 أرقام
+    if (value && index < otpLength - 1) otpRefs.current[index + 1]?.focus();
     if (newOtp.slice(0, otpLength).every((d) => d !== '')) {
       handleVerifyOTP(newOtp.slice(0, otpLength).join(''));
     }
@@ -174,7 +209,6 @@ export function EmailAuthModal({ isOpen, onClose }: EmailAuthModalProps) {
     setLoading(true);
     try {
       await loginWithCode({ code });
-      // الـ effect أعلاه سيتولى إنشاء المحفظة
     } catch (e: any) {
       console.error('loginWithCode error:', e);
       setError(e?.message || 'الرمز غير صحيح. حاول مجدداً.');
@@ -193,7 +227,9 @@ export function EmailAuthModal({ isOpen, onClose }: EmailAuthModalProps) {
     <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
       <div
         className="absolute inset-0 bg-black/75 backdrop-blur-md"
-        onClick={step !== 'success' && step !== 'creating-wallet' ? onClose : undefined}
+        onClick={
+          step !== 'success' && step !== 'creating-wallet' ? onClose : undefined
+        }
       />
 
       <div className="relative glass-panel-elevated w-full max-w-sm p-8 animate-slideUp">
@@ -207,7 +243,6 @@ export function EmailAuthModal({ isOpen, onClose }: EmailAuthModalProps) {
           </button>
         )}
 
-        {/* تحذير عند غياب App ID */}
         {!hasAppId && step === 'email' && (
           <div className="mb-5 p-3 rounded-lg border border-yellow-500/30 bg-yellow-500/10 flex items-start gap-2">
             <AlertTriangle className="w-4 h-4 text-yellow-500 mt-0.5 shrink-0" />
@@ -380,6 +415,36 @@ export function EmailAuthModal({ isOpen, onClose }: EmailAuthModalProps) {
             <div className="text-[11px] font-mono text-[var(--color-text-muted)] uppercase tracking-wider">
               Ed25519 · Stellar Testnet
             </div>
+          </div>
+        )}
+
+        {/* ── خطأ في إنشاء المحفظة ─────────────────────────────────── */}
+        {step === 'wallet-error' && (
+          <div className="space-y-5 py-2">
+            <div className="text-center">
+              <div className="w-14 h-14 mx-auto mb-3 rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center">
+                <AlertCircle className="w-7 h-7 text-red-400" />
+              </div>
+              <h3 className="text-xl font-serif mb-1">تعذّر إنشاء محفظة Stellar</h3>
+              <p className="text-[12px] text-[var(--color-text-dim)] leading-relaxed">
+                {error}
+              </p>
+            </div>
+
+            <div className="p-4 rounded-lg border border-yellow-500/20 bg-yellow-500/5 text-[11px] leading-relaxed text-[var(--color-text-secondary)]">
+              <div className="font-semibold text-yellow-300 mb-2">ماذا تفعل؟</div>
+              <ol className="list-decimal pr-4 space-y-1 text-[var(--color-text-dim)]">
+                <li>افتح <a href="https://dashboard.privy.io" target="_blank" rel="noreferrer" className="text-primary underline">Privy Dashboard</a></li>
+                <li>اختر تطبيقك ثم انتقل إلى Wallets / Chain Configuration</li>
+                <li>فعّل دعم <strong>Stellar</strong> (Tier 2). إن لم تجده، تواصل مع دعم Privy لتفعيله</li>
+                <li>تأكد أن إصدار <code className="bg-black/40 px-1 rounded">@privy-io/react-auth</code> هو <code className="bg-black/40 px-1 rounded">^3.0.0</code></li>
+                <li>افتح Console للحصول على تفاصيل الـ debugging (قائمة المحافظ)</li>
+              </ol>
+            </div>
+
+            <button onClick={onClose} className="btn-outline w-full text-[12px]">
+              إغلاق
+            </button>
           </div>
         )}
 
