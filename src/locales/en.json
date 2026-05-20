@@ -150,7 +150,136 @@
       "title": "Wallet Required",
       "description": "Connect your Freighter wallet to publish content on the Stellar network.",
       "identity": "Your on-chain identity is linked to your wallet"
+    },
+    "header": {
+      "eyebrow": "Create",
+      "title": "New Entry",
+      "publish_btn": "Publish to Chain"
+    },
+    "placeholders": {
+      "title": "Article Title...",
+      "excerpt": "A short excerpt to preview your article...",
+      "content": "Write your story using Markdown..."
+    },
+    "sidebar": {
+      "storage_title": "On-Chain Storage",
+      "storage_desc": "Your content will be hashed (SHA-256) and the hash will be permanently stored on the Stellar ledger via a Soroban smart contract.",
+      "content_hash_label": "Content Hash",
+      "content_hash_pending": "pending...",
+      "content_hash_will_compute": "Will be computed on publish",
+      "monetization_title": "Monetization",
+      "token_gate_label": "Token-gate this article",
+      "access_price_label": "Access Price (XLM)",
+      "access_price_hint": "Readers pay this amount via the Soroban contract. 100% goes directly to your wallet.",
+      "network_title": "Network",
+      "network_chain": "Chain",
+      "network_chain_val": "Stellar Testnet",
+      "network_contract": "Contract",
+      "network_contract_val": "Soroban",
+      "network_wallet": "Wallet",
+      "network_wallet_val": "Freighter"
     }
+  },
+  "article": {
+    "token_gated_badge": "Token-Gated",
+    "on_chain_verified": "On-Chain Verified Author",
+    "readers": "readers",
+    "tips": "tips",
+    "share": "Share",
+    "copied": "Copied",
+    "gate": {
+      "title": "Token-Gated Content",
+      "description": "This article is secured by a Soroban smart contract. Purchase access to read the full story and support the author.",
+      "unlock_btn": "Unlock for {{price}} XLM",
+      "confirming": "Confirming..."
+    },
+    "sidebar": {
+      "support_title": "Support Author",
+      "tip_btn": "Tip",
+      "tip_hint": "Tips are sent directly to the author via Stellar. Zero fees.",
+      "onchain_title": "On-Chain Data",
+      "network_label": "Network",
+      "network_val": "Soroban (Testnet)",
+      "content_hash_label": "Content Hash",
+      "tx_hash_label": "TX Hash",
+      "total_raised": "Total Raised",
+      "access_count": "Access Count",
+      "tips_received": "Tips Received"
+    },
+    "loading_title": "Loading from Stellar...",
+    "loading_subtitle": "Fetching on-chain metadata & IPFS content",
+    "not_found_title": "Article Not Found",
+    "not_found_subtitle": "This content may have been removed or doesn't exist."
+  },
+  "dashboard": {
+    "eyebrow": "Dashboard",
+    "title": "Creator Studio",
+    "sync_btn": "Sync",
+    "syncing": "Syncing...",
+    "sync_title": "Sync stats from Soroban contract",
+    "register_btn": "Register Identity",
+    "new_entry_btn": "New Entry",
+    "on_chain_verified": "On-Chain Verified",
+    "not_registered": "Not registered — click \"Register Identity\"",
+    "stats": {
+      "revenue": "Total Revenue",
+      "published": "Published",
+      "readers": "Total Readers",
+      "tips": "Tips Received"
+    },
+    "content_nfts_title": "Your Content NFTs",
+    "entries_count": "{{count}} entries",
+    "empty_message": "You haven't published any content yet.",
+    "start_writing": "Start Writing →",
+    "table": {
+      "title": "Title",
+      "type": "Type",
+      "status": "Status",
+      "revenue": "Revenue",
+      "readers": "Readers",
+      "tips": "Tips",
+      "view": "View"
+    },
+    "type_gated": "Gated",
+    "type_free": "Free",
+    "register_modal": {
+      "title": "Register On-Chain Identity",
+      "subtitle": "Create a permanent author profile on the Soroban smart contract linked to your Stellar address.",
+      "name_label": "Display Name",
+      "name_placeholder": "Your writer name...",
+      "bio_label": "Bio",
+      "bio_placeholder": "Brief description of your work...",
+      "cancel_btn": "Cancel",
+      "register_btn": "Register",
+      "registering": "Registering..."
+    },
+    "toast": {
+      "registering_title": "Registering Identity...",
+      "registering_msg": "Waiting for wallet confirmation",
+      "success_title": "Identity Registered!",
+      "success_msg": "Your on-chain author profile is live.",
+      "error_title": "Registration Failed",
+      "error_default": "Transaction rejected."
+    }
+  },
+  "publish_modal": {
+    "publishing": "Publishing...",
+    "published": "Published!",
+    "failed": "Publish Failed",
+    "untitled": "Untitled",
+    "steps": {
+      "ipfs_label": "Uploading to IPFS",
+      "ipfs_desc": "Pinning markdown text to decentralized storage via Pinata",
+      "nft_label": "Minting NFT",
+      "nft_desc": "Creating Content NFT on the Soroban smart contract",
+      "sign_label": "Signing Transaction",
+      "sign_desc": "Waiting for Freighter wallet signature approval",
+      "confirm_label": "Confirming On-Chain",
+      "confirm_desc": "Waiting for Stellar network confirmation"
+    },
+    "tx_hash_label": "Transaction Hash",
+    "view_article": "View Article",
+    "close": "Close"
   },
   "footer": {
     "description": "The decentralized content platform built on Stellar. Publish, tokenize, and monetize your writing using Soroban smart contracts.",
@@ -163,7 +292,9 @@
     "source_code": "Source Code",
     "copyright": "© 2025 Nalax — Built on Stellar",
     "smart_contracts": "Soroban Smart Contracts",
-    "wallet": "Freighter Wallet"
+    "wallet": "Freighter Wallet",
+    "soroban_contracts": "Soroban Contracts",
+    "ipfs_storage": "IPFS Storage"
   },
   "words": {
     "publish": "Publish.",
@@ -189,5 +320,22 @@
     "nft_title": "Every article minted as a permanent NFT",
     "cta_final_title": "Ready to own your content?",
     "cta_final_sub": "Join hundreds of writers and creators building their digital future on Stellar."
+  },
+  "toast": {
+    "wallet_required_title": "Wallet Required",
+    "wallet_required_msg": "Please connect your Freighter wallet first.",
+    "missing_token_title": "Missing Token ID",
+    "missing_token_msg": "This article has no on-chain token ID.",
+    "unlocking": "Unlocking Content...",
+    "sending_tip": "Sending Tip...",
+    "waiting_confirm": "Waiting for wallet confirmation",
+    "unlocked_title": "Content Unlocked!",
+    "tip_sent_title": "Tip Sent!",
+    "tip_sent_msg": "{{amount}} XLM sent to author via contract",
+    "tx_failed_title": "Transaction Failed",
+    "link_copied_title": "Link Copied",
+    "nft_minted_title": "Content NFT Minted!",
+    "publish_failed_title": "Publish Failed",
+    "publish_failed_default": "Transaction was rejected or timed out."
   }
 }

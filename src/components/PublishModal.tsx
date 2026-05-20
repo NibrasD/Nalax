@@ -1,37 +1,9 @@
 import { CheckCircle, Loader2, FileText, Shield, Hash, UploadCloud } from 'lucide-react';
-
-interface PublishStep {
-  label: string;
-  description: string;
-  icon: React.ReactNode;
-}
-
-const PUBLISH_STEPS: PublishStep[] = [
-  {
-    label: 'Uploading to IPFS',
-    description: 'Pinning markdown text to decentralized storage via Pinata',
-    icon: <UploadCloud className="w-5 h-5" />,
-  },
-  {
-    label: 'Minting NFT',
-    description: 'Creating Content NFT on the Soroban smart contract',
-    icon: <FileText className="w-5 h-5" />,
-  },
-  {
-    label: 'Signing Transaction',
-    description: 'Waiting for Freighter wallet signature approval',
-    icon: <Shield className="w-5 h-5" />,
-  },
-  {
-    label: 'Confirming On-Chain',
-    description: 'Waiting for Stellar network confirmation',
-    icon: <CheckCircle className="w-5 h-5" />,
-  },
-];
+import { useTranslation } from 'react-i18next';
 
 interface PublishModalProps {
   isOpen: boolean;
-  currentStep: number; // 0-indexed
+  currentStep: number;
   title: string;
   error?: string | null;
   txHash?: string | null;
@@ -39,6 +11,31 @@ interface PublishModalProps {
 }
 
 export function PublishModal({ isOpen, currentStep, title, error, txHash, onClose }: PublishModalProps) {
+  const { t } = useTranslation();
+
+  const PUBLISH_STEPS = [
+    {
+      label: t('publish_modal.steps.ipfs_label'),
+      description: t('publish_modal.steps.ipfs_desc'),
+      icon: <UploadCloud className="w-5 h-5" />,
+    },
+    {
+      label: t('publish_modal.steps.nft_label'),
+      description: t('publish_modal.steps.nft_desc'),
+      icon: <FileText className="w-5 h-5" />,
+    },
+    {
+      label: t('publish_modal.steps.sign_label'),
+      description: t('publish_modal.steps.sign_desc'),
+      icon: <Shield className="w-5 h-5" />,
+    },
+    {
+      label: t('publish_modal.steps.confirm_label'),
+      description: t('publish_modal.steps.confirm_desc'),
+      icon: <CheckCircle className="w-5 h-5" />,
+    },
+  ];
+
   if (!isOpen) return null;
 
   const isComplete = currentStep >= PUBLISH_STEPS.length;
@@ -68,10 +65,14 @@ export function PublishModal({ isOpen, currentStep, title, error, txHash, onClos
           </div>
           
           <h3 className="text-xl font-serif mb-1">
-            {isFailed ? 'Publish Failed' : isComplete ? 'Published!' : 'Publishing...'}
+            {isFailed
+              ? t('publish_modal.failed')
+              : isComplete
+              ? t('publish_modal.published')
+              : t('publish_modal.publishing')}
           </h3>
           <p className="text-[13px] text-[var(--color-text-dim)] font-mono truncate max-w-[300px] mx-auto">
-            {title || 'Untitled'}
+            {title || t('publish_modal.untitled')}
           </p>
         </div>
 
@@ -80,7 +81,6 @@ export function PublishModal({ isOpen, currentStep, title, error, txHash, onClos
           {PUBLISH_STEPS.map((step, i) => {
             const isActive = i === currentStep && !isFailed;
             const isDone = i < currentStep || isComplete;
-            const isPending = i > currentStep;
 
             return (
               <div
@@ -127,7 +127,9 @@ export function PublishModal({ isOpen, currentStep, title, error, txHash, onClos
         {/* TX Hash */}
         {txHash && (
           <div className="p-3 bg-[var(--color-accent)]/5 border border-[var(--color-accent)]/20 rounded-sm mb-4">
-            <div className="text-[10px] font-mono text-[var(--color-text-dim)] uppercase tracking-wider mb-1">Transaction Hash</div>
+            <div className="text-[10px] font-mono text-[var(--color-text-dim)] uppercase tracking-wider mb-1">
+              {t('publish_modal.tx_hash_label')}
+            </div>
             <p className="text-[11px] text-accent font-mono break-all">{txHash}</p>
           </div>
         )}
@@ -140,7 +142,7 @@ export function PublishModal({ isOpen, currentStep, title, error, txHash, onClos
               isComplete ? 'btn-accent' : 'btn-outline'
             }`}
           >
-            {isComplete ? 'View Article' : 'Close'}
+            {isComplete ? t('publish_modal.view_article') : t('publish_modal.close')}
           </button>
         )}
       </div>

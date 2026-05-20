@@ -1,36 +1,39 @@
 import { Gem, Github, ExternalLink, Hash, Zap, ArrowUpRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
-
-const NAV_COLS = [
-  {
-    title: 'المنصة',
-    links: [
-      { to: '/feed',      label: 'الخلاصة' },
-      { to: '/channels',  label: 'القنوات' },
-      { to: '/explore',   label: 'استكشف' },
-      { to: '/write',     label: 'اكتب مقالاً' },
-      { to: '/dashboard', label: 'لوحة التحكم' },
-    ],
-  },
-  {
-    title: 'النظام البيئي',
-    links: [
-      { href: 'https://stellar.org',          label: 'Stellar Network' },
-      { href: 'https://soroban.stellar.org',  label: 'Soroban Docs' },
-      { href: 'https://freighter.app',        label: 'Freighter Wallet' },
-      { href: 'https://github.com/DeshaDev/nalax', label: 'Source Code', icon: Github },
-    ],
-  },
-];
+import { useTranslation } from 'react-i18next';
 
 const CHANNEL_QUICK = [
-  { id: 'stellar-dev',     icon: '⚡', name: 'Stellar Developers' },
-  { id: 'arabic-web3',    icon: '🌍', name: 'Web3 العربي' },
+  { id: 'stellar-dev',      icon: '⚡', name: 'Stellar Developers' },
+  { id: 'arabic-web3',     icon: '🌍', name: 'Web3 العربي' },
   { id: 'content-creators', icon: '✍️', name: 'صانعو المحتوى' },
-  { id: 'defi-mena',      icon: '💰', name: 'DeFi MENA' },
+  { id: 'defi-mena',       icon: '💰', name: 'DeFi MENA' },
 ];
 
 export function Footer() {
+  const { t } = useTranslation();
+
+  const NAV_COLS = [
+    {
+      title: t('footer.platform'),
+      links: [
+        { to: '/feed',      label: t('nav.feed') },
+        { to: '/channels',  label: t('nav.channels') },
+        { to: '/explore',   label: t('nav.explore') },
+        { to: '/write',     label: t('nav.write') },
+        { to: '/dashboard', label: t('nav.dashboard') },
+      ],
+    },
+    {
+      title: t('footer.ecosystem'),
+      links: [
+        { href: 'https://stellar.org',              label: t('footer.stellar_network') },
+        { href: 'https://soroban.stellar.org',      label: t('footer.soroban_docs') },
+        { href: 'https://freighter.app',            label: t('footer.freighter_wallet') },
+        { href: 'https://github.com/DeshaDev/nalax', label: t('footer.source_code'), icon: Github },
+      ],
+    },
+  ];
+
   return (
     <footer className="relative border-t border-[var(--color-border)] mt-16 overflow-hidden">
 
@@ -42,7 +45,6 @@ export function Footer() {
         style={{ background: 'radial-gradient(ellipse, rgba(124,77,255,0.05) 0%, transparent 70%)' }} />
 
       <div className="max-w-7xl mx-auto px-6 pt-16 pb-10 relative z-10">
-
 
         {/* ── Main grid ─────────────────────────────────────────── */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-10 mb-14">
@@ -59,7 +61,7 @@ export function Footer() {
             </Link>
 
             <p className="text-[13px] text-[var(--color-text-dim)] leading-[1.7] mb-5 max-w-[220px]">
-              منصة النشر اللامركزي الأولى للمجتمع العربي، مبنية على Stellar وعقود Soroban الذكية.
+              {t('footer.description')}
             </p>
 
             {/* Live status */}
@@ -69,7 +71,7 @@ export function Footer() {
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-accent" />
               </span>
               <span className="text-[10px] font-mono text-accent uppercase tracking-[1.5px]">
-                Soroban Testnet
+                {t('footer.testnet')}
               </span>
             </div>
           </div>
@@ -112,7 +114,7 @@ export function Footer() {
           {/* Channels quick links */}
           <div>
             <h4 className="text-[10px] font-mono uppercase tracking-[2px] text-[var(--color-text-dim)] mb-5 flex items-center gap-1.5">
-              <Hash className="w-3 h-3" /> القنوات
+              <Hash className="w-3 h-3" /> {t('nav.channels')}
             </h4>
             <ul className="space-y-2.5">
               {CHANNEL_QUICK.map(({ id, icon, name }) => (
@@ -132,7 +134,7 @@ export function Footer() {
                   to="/channels"
                   className="text-[11px] font-mono text-primary hover:text-white transition-colors flex items-center gap-1 mt-2"
                 >
-                  عرض كل القنوات <ArrowUpRight className="w-3 h-3" />
+                  {t('channels.all_channels')} <ArrowUpRight className="w-3 h-3" />
                 </Link>
               </li>
             </ul>
@@ -142,14 +144,14 @@ export function Footer() {
         {/* ── Bottom bar ────────────────────────────────────────── */}
         <div className="pt-6 border-t border-[var(--color-border)] flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="text-[11px] font-mono text-[var(--color-text-muted)] uppercase tracking-[1px]">
-            © 2025 Nalax — Built on Stellar
+            {t('footer.copyright')}
           </div>
 
           <div className="flex items-center gap-5">
             {[
-              { dot: 'bg-primary', label: 'Soroban Contracts' },
-              { dot: 'bg-accent',  label: 'IPFS Storage' },
-              { dot: 'bg-rose',    label: 'Freighter Wallet' },
+              { dot: 'bg-primary', label: t('footer.soroban_contracts') },
+              { dot: 'bg-accent',  label: t('footer.ipfs_storage') },
+              { dot: 'bg-rose',    label: t('footer.freighter_wallet') },
             ].map(({ dot, label }) => (
               <span key={label} className="flex items-center gap-1.5 text-[10px] font-mono text-[var(--color-text-muted)] uppercase tracking-[1px]">
                 <span className={`w-1.5 h-1.5 rounded-full ${dot}`} />

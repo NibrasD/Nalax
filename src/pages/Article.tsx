@@ -11,10 +11,12 @@ import { useState, useEffect } from 'react';
 import { purchaseAccess, tipAuthor, fetchContentById, checkAccess } from '../lib/stellar';
 import { xlmToStroops } from '../lib/contract';
 import { fetchIPFSContent } from '../lib/ipfs';
+import { useTranslation } from 'react-i18next';
 
 const TIP_PRESETS = [1, 5, 10, 25];
 
 export function Article() {
+  const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const localArticle = useAppStore(state => state.articles.find(a => a.id === id));
   const fundArticle = useAppStore(state => state.fundArticle);
@@ -34,10 +36,9 @@ export function Article() {
 
   // If not found locally, try fetching from chain
   useEffect(() => {
-    if (localArticle) return; // Already have it locally
+    if (localArticle) return;
     if (!id) return;
     
-    // Extract tokenId from URL (could be "onchain-1" or just "1")
     const tokenIdStr = id.startsWith('onchain-') ? id.replace('onchain-', '') : id;
     const tokenId = parseInt(tokenIdStr, 10);
     if (isNaN(tokenId)) return;
@@ -68,7 +69,6 @@ export function Article() {
         };
         setChainArticle(art);
         
-        // Fetch content from IPFS using cached fetcher
         const cid = art.contentHash;
         if (cid) {
           const ipfsText = await fetchIPFSContent(cid);
@@ -84,10 +84,8 @@ export function Article() {
     })();
   }, [id, localArticle]);
 
-  // Merge: prefer local article, fall back to chain
   const article = localArticle || chainArticle;
 
-  // ── On-chain access check (fixes: access verification via contract, not local state) ──
   useEffect(() => {
     if (!publicKey || !article?.tokenId || !article.isTokenGated) return;
     let cancelled = false;
@@ -97,7 +95,6 @@ export function Article() {
     return () => { cancelled = true; };
   }, [publicKey, article?.tokenId, article?.isTokenGated]);
   
-  // Use IPFS content if the local content is empty
   const displayContent = (article?.content && article.content.length > 0) 
     ? article.content 
     : ipfsContent || '';
@@ -106,8 +103,8 @@ export function Article() {
     return (
       <div className="text-center py-24 animate-fadeIn">
         <Loader2 className="w-10 h-10 text-primary animate-spin mx-auto mb-4" />
-        <h2 className="text-2xl font-serif mb-2">Loading from Stellar...</h2>
-        <p className="text-[var(--color-text-dim)] text-sm font-mono">Fetching on-chain metadata & IPFS content</p>
+        <h2 className="text-2xl font-serif mb-2">{t('article.loading_title')}</h2>
+        <p className="text-[var(--color-text-dim)] text-sm font-mono">{t('article.loading_subtitle')}</p>
       </div>
     );
   }
@@ -118,65 +115,62 @@ export function Article() {
         <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-white/[0.03] flex items-center justify-center">
           <FileText className="w-7 h-7 text-[var(--color-text-muted)]" />
         </div>
-        <h2 className="text-2xl font-serif mb-2">Article Not Found</h2>
-        <p className="text-[var(--color-text-dim)] text-sm font-mono">This content may have been removed or doesn't exist.</p>
+        <h2 className="text-2xl font-serif mb-2">{t('article.not_found_title')}</h2>
+        <p className="text-[var(--color-text-dim)] text-sm font-mono">{t('article.not_found_subtitle')}</p>
       </div>
     );
   }
 
   const handleTransaction = async (type: 'unlock' | 'tip') => {
     if (!isConnected || !publicKey) {
-      toast.addToast({ type: 'error', title: 'Wallet Required', message: 'Please connect your Freighter wallet first.' });
+      toast.addToast({ type: 'error', title: t('toast.wallet_required_title'), message: t('toast.wallet_required_msg') });
       return;
     }
 
     if (!article.tokenId) {
-      toast.addToast({ type: 'error', title: 'Missing Token ID', message: 'This article has no on-chain token ID.' });
+      toast.addToast({ type: 'error', title: t('toast.missing_token_title'), message: t('toast.missing_token_msg') });
       return;
     }
     
     setIsTransacting(true);
     const loadingId = toast.addToast({ 
       type: 'loading', 
-      title: type === 'unlock' ? 'Unlocking Content...' : 'Sending Tip...',
-      message: 'Waiting for wallet confirmation'
+      title: type === 'unlock' ? t('toast.unlocking') : t('toast.sending_tip'),
+      message: t('toast.waiting_confirm')
     });
 
     try {
       let result: any;
 
       if (type === 'unlock') {
-        // ── FIX: Call purchase_access on the smart contract (not direct payment) ──
         result = await purchaseAccess(publicKey, article.tokenId);
         setHasUnlocked(true);
         fundArticle(article.id, article.price || 0);
         toast.updateToast(loadingId, { 
           type: 'success', 
-          title: 'Content Unlocked!', 
+          title: t('toast.unlocked_title'), 
           message: `TX: ${result?.hash?.slice(0, 16)}...` 
         });
       } else {
-        // ── FIX: Call tip_author on the smart contract (not direct payment) ──
         const tipStroops = xlmToStroops(Number(tipAmount));
         result = await tipAuthor(publicKey, article.tokenId, tipStroops);
         tipArticle(article.id, Number(tipAmount));
         setTipAmount('');
         toast.updateToast(loadingId, { 
           type: 'success', 
-          title: 'Tip Sent!', 
-          message: `${tipAmount} XLM sent to author via contract` 
+          title: t('toast.tip_sent_title'), 
+          message: t('toast.tip_sent_msg', { amount: tipAmount })
         });
       }
     } catch (error: any) {
       console.error(error);
       toast.updateToast(loadingId, { 
         type: 'error', 
-        title: 'Transaction Failed', 
+        title: t('toast.tx_failed_title'), 
         message: error?.message || 'Unknown error' 
       });
     } finally {
       setIsTransacting(false);
-      // Refresh balance after any transaction attempt
       refreshBalance();
     }
   };
@@ -184,7 +178,7 @@ export function Article() {
   const copyLink = () => {
     navigator.clipboard.writeText(window.location.href);
     setCopied(true);
-    toast.addToast({ type: 'info', title: 'Link Copied', duration: 2000 });
+    toast.addToast({ type: 'info', title: t('toast.link_copied_title'), duration: 2000 });
     setTimeout(() => setCopied(false), 2000);
   };
 
@@ -203,7 +197,7 @@ export function Article() {
           ))}
           {article.isTokenGated && (
             <span className="text-[10px] font-mono uppercase tracking-[1.5px] text-[var(--color-warning)] bg-[var(--color-warning)]/10 px-2.5 py-1 rounded-sm flex items-center gap-1">
-              <Lock className="w-3 h-3" /> Token-Gated
+              <Lock className="w-3 h-3" /> {t('article.token_gated_badge')}
             </span>
           )}
         </div>
@@ -224,7 +218,7 @@ export function Article() {
               <div className="text-[14px] font-medium">{article.authorName || formatAddress(article.authorPublicKey)}</div>
               <div className="text-[10px] text-[var(--color-text-dim)] font-mono uppercase tracking-wider flex items-center gap-1.5">
                 <ShieldCheck className="w-3 h-3 text-accent" />
-                On-Chain Verified Author
+                {t('article.on_chain_verified')}
               </div>
             </div>
           </div>
@@ -236,15 +230,15 @@ export function Article() {
             </div>
             <div className="flex items-center gap-1.5">
               <Eye className="w-3.5 h-3.5" />
-              {article.accessCount || 0} readers
+              {article.accessCount || 0} {t('article.readers')}
             </div>
             <div className="flex items-center gap-1.5">
               <Heart className="w-3.5 h-3.5 text-accent" />
-              {article.tipCount || 0} tips
+              {article.tipCount || 0} {t('article.tips')}
             </div>
             <button onClick={copyLink} className="flex items-center gap-1.5 hover:text-white transition-colors cursor-pointer">
               {copied ? <Check className="w-3.5 h-3.5 text-accent" /> : <Copy className="w-3.5 h-3.5" />}
-              {copied ? 'Copied' : 'Share'}
+              {copied ? t('article.copied') : t('article.share')}
             </button>
           </div>
         </div>
@@ -259,9 +253,9 @@ export function Article() {
             <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center">
               <Lock className="w-7 h-7 text-primary" />
             </div>
-            <h3 className="text-2xl font-serif mb-2">Token-Gated Content</h3>
+            <h3 className="text-2xl font-serif mb-2">{t('article.gate.title')}</h3>
             <p className="text-[var(--color-text-dim)] max-w-sm mx-auto leading-relaxed text-[14px] mb-6">
-              This article is secured by a Soroban smart contract. Purchase access to read the full story and support the author.
+              {t('article.gate.description')}
             </p>
             <div className="flex items-center justify-center gap-4 mb-4">
               <div className="text-center">
@@ -275,9 +269,9 @@ export function Article() {
               className="btn-primary w-full max-w-xs mx-auto flex items-center justify-center gap-2 disabled:opacity-50"
             >
               {isTransacting ? (
-                <><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Confirming...</>
+                <><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> {t('article.gate.confirming')}</>
               ) : (
-                <><Lock className="w-4 h-4" /> Unlock for {article.price} XLM</>
+                <><Lock className="w-4 h-4" /> {t('article.gate.unlock_btn', { price: article.price })}</>
               )}
             </button>
           </div>
@@ -305,7 +299,7 @@ export function Article() {
             {/* Tip Card */}
             <div className="glass-panel p-5">
               <h4 className="text-[10px] font-mono uppercase tracking-[2px] text-[var(--color-text-dim)] mb-4 flex items-center justify-between">
-                Support Author
+                {t('article.sidebar.support_title')}
                 <Coins className="w-4 h-4 text-primary" />
               </h4>
               
@@ -338,33 +332,33 @@ export function Article() {
                   disabled={isTransacting || !tipAmount || Number(tipAmount) <= 0}
                   className="btn-primary !py-2 !px-4 disabled:opacity-30 disabled:cursor-not-allowed whitespace-nowrap"
                 >
-                  {isTransacting ? '...' : 'Tip'}
+                  {isTransacting ? '...' : t('article.sidebar.tip_btn')}
                 </button>
               </div>
               <p className="text-[10px] text-[var(--color-text-dim)] mt-2 leading-relaxed">
-                Tips are sent directly to the author via Stellar. Zero fees.
+                {t('article.sidebar.tip_hint')}
               </p>
             </div>
 
             {/* On-chain verification */}
             <div className="glass-panel p-5">
               <h4 className="text-[10px] font-mono uppercase tracking-[2px] text-[var(--color-text-dim)] mb-4 flex items-center justify-between">
-                On-Chain Data
+                {t('article.sidebar.onchain_title')}
                 <ShieldCheck className="w-4 h-4 text-accent" />
               </h4>
               
               <div className="space-y-3">
                 <div>
-                  <div className="label-sm mb-1">Network</div>
+                  <div className="label-sm mb-1">{t('article.sidebar.network_label')}</div>
                   <div className="text-[12px] font-mono flex items-center gap-1.5">
                     <span className="w-1.5 h-1.5 rounded-full bg-accent" />
-                    Soroban (Testnet)
+                    {t('article.sidebar.network_val')}
                   </div>
                 </div>
                 
                 {article.contentHash && (
                   <div>
-                    <div className="label-sm mb-1">Content Hash</div>
+                    <div className="label-sm mb-1">{t('article.sidebar.content_hash_label')}</div>
                     <div className="text-[11px] font-mono text-primary break-all bg-[var(--color-bg-base)] p-2 border border-[var(--color-border)] rounded-sm">
                       {article.contentHash.slice(0, 32)}...
                     </div>
@@ -373,7 +367,7 @@ export function Article() {
                 
                 {article.txHash && (
                   <div>
-                    <div className="label-sm mb-1">TX Hash</div>
+                    <div className="label-sm mb-1">{t('article.sidebar.tx_hash_label')}</div>
                     <div className="text-[11px] font-mono text-accent break-all">
                       {article.txHash.slice(0, 20)}...
                     </div>
@@ -382,15 +376,15 @@ export function Article() {
 
                 <div className="pt-3 border-t border-[var(--color-border)] space-y-2">
                   <div className="flex justify-between text-[11px]">
-                    <span className="text-[var(--color-text-dim)]">Total Raised</span>
+                    <span className="text-[var(--color-text-dim)]">{t('article.sidebar.total_raised')}</span>
                     <span className="font-mono text-accent">{(article.totalRaised || 0).toLocaleString()} XLM</span>
                   </div>
                   <div className="flex justify-between text-[11px]">
-                    <span className="text-[var(--color-text-dim)]">Access Count</span>
+                    <span className="text-[var(--color-text-dim)]">{t('article.sidebar.access_count')}</span>
                     <span className="font-mono">{article.accessCount || 0}</span>
                   </div>
                   <div className="flex justify-between text-[11px]">
-                    <span className="text-[var(--color-text-dim)]">Tips Received</span>
+                    <span className="text-[var(--color-text-dim)]">{t('article.sidebar.tips_received')}</span>
                     <span className="font-mono">{article.tipCount || 0}</span>
                   </div>
                 </div>

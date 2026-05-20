@@ -150,7 +150,136 @@
       "title": "المحفظة مطلوبة",
       "description": "قم بربط محفظة Freighter الخاصة بك لنشر المحتوى على شبكة Stellar.",
       "identity": "هويتك على السلسلة مرتبطة بمحفظتك"
+    },
+    "header": {
+      "eyebrow": "إنشاء",
+      "title": "مقال جديد",
+      "publish_btn": "نشر على السلسلة"
+    },
+    "placeholders": {
+      "title": "عنوان المقال...",
+      "excerpt": "مقتطف قصير لمعاينة مقالك...",
+      "content": "اكتب قصتك باستخدام Markdown..."
+    },
+    "sidebar": {
+      "storage_title": "التخزين على السلسلة",
+      "storage_desc": "سيتم تجزئة محتواك (SHA-256) وتخزين البصمة بشكل دائم على دفتر Stellar عبر عقد Soroban الذكي.",
+      "content_hash_label": "بصمة المحتوى",
+      "content_hash_pending": "في الانتظار...",
+      "content_hash_will_compute": "سيتم الحساب عند النشر",
+      "monetization_title": "تحقيق الدخل",
+      "token_gate_label": "تقييد الوصول بالرمز",
+      "access_price_label": "سعر الوصول (XLM)",
+      "access_price_hint": "يدفع القراء هذا المبلغ عبر عقد Soroban. 100% تذهب مباشرة لمحفظتك.",
+      "network_title": "الشبكة",
+      "network_chain": "السلسلة",
+      "network_chain_val": "Stellar Testnet",
+      "network_contract": "العقد",
+      "network_contract_val": "Soroban",
+      "network_wallet": "المحفظة",
+      "network_wallet_val": "Freighter"
     }
+  },
+  "article": {
+    "token_gated_badge": "وصول مشروط",
+    "on_chain_verified": "كاتب موثّق على السلسلة",
+    "readers": "قارئ",
+    "tips": "دعم",
+    "share": "مشاركة",
+    "copied": "تم النسخ",
+    "gate": {
+      "title": "محتوى مقيّد بالرمز",
+      "description": "هذا المقال محمي بعقد Soroban الذكي. اشترِ صلاحية الوصول لقراءة القصة كاملة ودعم الكاتب.",
+      "unlock_btn": "فتح مقابل {{price}} XLM",
+      "confirming": "جاري التأكيد..."
+    },
+    "sidebar": {
+      "support_title": "ادعم الكاتب",
+      "tip_btn": "أرسل دعماً",
+      "tip_hint": "تُرسَل الإكراميات مباشرة للكاتب عبر Stellar. بدون رسوم.",
+      "onchain_title": "بيانات السلسلة",
+      "network_label": "الشبكة",
+      "network_val": "Soroban (شبكة الاختبار)",
+      "content_hash_label": "بصمة المحتوى",
+      "tx_hash_label": "بصمة المعاملة",
+      "total_raised": "إجمالي التمويل",
+      "access_count": "عدد الوصولات",
+      "tips_received": "الدعم المستلَم"
+    },
+    "loading_title": "جاري التحميل من Stellar...",
+    "loading_subtitle": "جلب البيانات من السلسلة ومحتوى IPFS",
+    "not_found_title": "المقال غير موجود",
+    "not_found_subtitle": "ربما تم حذف هذا المحتوى أو أنه غير موجود."
+  },
+  "dashboard": {
+    "eyebrow": "لوحة التحكم",
+    "title": "استوديو المبدع",
+    "sync_btn": "مزامنة",
+    "syncing": "جاري المزامنة...",
+    "sync_title": "مزامنة الإحصائيات من عقد Soroban",
+    "register_btn": "تسجيل الهوية",
+    "new_entry_btn": "مقال جديد",
+    "on_chain_verified": "موثّق على السلسلة",
+    "not_registered": "غير مسجل — اضغط \"تسجيل الهوية\"",
+    "stats": {
+      "revenue": "إجمالي الإيرادات",
+      "published": "المنشور",
+      "readers": "إجمالي القراء",
+      "tips": "الدعم المستلَم"
+    },
+    "content_nfts_title": "مقالاتك NFT",
+    "entries_count": "{{count}} مقال",
+    "empty_message": "لم تنشر أي محتوى بعد.",
+    "start_writing": "ابدأ الكتابة →",
+    "table": {
+      "title": "العنوان",
+      "type": "النوع",
+      "status": "الحالة",
+      "revenue": "الإيرادات",
+      "readers": "القراء",
+      "tips": "الدعم",
+      "view": "عرض"
+    },
+    "type_gated": "مقيّد",
+    "type_free": "مجاني",
+    "register_modal": {
+      "title": "تسجيل الهوية على السلسلة",
+      "subtitle": "أنشئ ملفاً شخصياً دائماً للكاتب على عقد Soroban الذكي مرتبطاً بعنوانك على Stellar.",
+      "name_label": "الاسم المعروض",
+      "name_placeholder": "اسمك ككاتب...",
+      "bio_label": "النبذة الشخصية",
+      "bio_placeholder": "وصف مختصر عن عملك...",
+      "cancel_btn": "إلغاء",
+      "register_btn": "تسجيل",
+      "registering": "جاري التسجيل..."
+    },
+    "toast": {
+      "registering_title": "جاري تسجيل الهوية...",
+      "registering_msg": "في انتظار تأكيد المحفظة",
+      "success_title": "تم التسجيل بنجاح!",
+      "success_msg": "ملفك الشخصي ككاتب على السلسلة أصبح متاحاً.",
+      "error_title": "فشل التسجيل",
+      "error_default": "تم رفض المعاملة."
+    }
+  },
+  "publish_modal": {
+    "publishing": "جاري النشر...",
+    "published": "تم النشر!",
+    "failed": "فشل النشر",
+    "untitled": "بدون عنوان",
+    "steps": {
+      "ipfs_label": "رفع إلى IPFS",
+      "ipfs_desc": "تثبيت نص Markdown على التخزين اللامركزي عبر Pinata",
+      "nft_label": "سك NFT",
+      "nft_desc": "إنشاء NFT المحتوى على عقد Soroban الذكي",
+      "sign_label": "توقيع المعاملة",
+      "sign_desc": "في انتظار موافقة محفظة Freighter",
+      "confirm_label": "تأكيد على السلسلة",
+      "confirm_desc": "في انتظار تأكيد شبكة Stellar"
+    },
+    "tx_hash_label": "بصمة المعاملة",
+    "view_article": "عرض المقال",
+    "close": "إغلاق"
   },
   "footer": {
     "description": "منصة المحتوى اللامركزية المبنية على Stellar. انشر، ورمز، وحقق الربح من كتاباتك باستخدام عقود Soroban الذكية.",
@@ -163,7 +292,9 @@
     "source_code": "كود المصدر",
     "copyright": "© 2025 Nalax — بني على Stellar",
     "smart_contracts": "عقود Soroban الذكية",
-    "wallet": "محفظة Freighter"
+    "wallet": "محفظة Freighter",
+    "soroban_contracts": "عقود Soroban",
+    "ipfs_storage": "تخزين IPFS"
   },
   "words": {
     "publish": "انشر.",
@@ -189,5 +320,22 @@
     "nft_title": "كل مقال يُسكّ كـ NFT دائم",
     "cta_final_title": "جاهز تمتلك محتواك؟",
     "cta_final_sub": "انضم إلى مئات الكتّاب والمبدعين الذين يبنون مستقبلهم الرقمي على Stellar."
+  },
+  "toast": {
+    "wallet_required_title": "المحفظة مطلوبة",
+    "wallet_required_msg": "يرجى ربط محفظة Freighter أولاً.",
+    "missing_token_title": "معرّف الرمز مفقود",
+    "missing_token_msg": "هذا المقال لا يمتلك معرّف رمز على السلسلة.",
+    "unlocking": "جاري فتح المحتوى...",
+    "sending_tip": "جاري إرسال الدعم...",
+    "waiting_confirm": "في انتظار تأكيد المحفظة",
+    "unlocked_title": "تم فتح المحتوى!",
+    "tip_sent_title": "تم إرسال الدعم!",
+    "tip_sent_msg": "{{amount}} XLM أُرسلت للكاتب عبر العقد",
+    "tx_failed_title": "فشلت المعاملة",
+    "link_copied_title": "تم نسخ الرابط",
+    "nft_minted_title": "تم سك NFT المحتوى!",
+    "publish_failed_title": "فشل النشر",
+    "publish_failed_default": "تم رفض المعاملة أو انتهت المهلة."
   }
 }

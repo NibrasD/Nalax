@@ -27,7 +27,6 @@ export function Write() {
   const [isTokenGated, setIsTokenGated] = useState(false);
   const [price, setPrice] = useState('5');
   
-  // Publish state
   const [showPublishModal, setShowPublishModal] = useState(false);
   const [publishStep, setPublishStep] = useState(0);
   const [publishError, setPublishError] = useState<string | null>(null);
@@ -43,17 +42,14 @@ export function Write() {
     setPublishTxHash(null);
 
     try {
-      // Step 0: Upload to IPFS
       setPublishStep(0);
       const contentBody = content || 'Empty article body.';
       const cid = await uploadToIPFS(contentBody, title);
       await new Promise(r => setTimeout(r, 800));
 
-      // Step 1: Minting NFT (prepare tx)
       setPublishStep(1);
       await new Promise(r => setTimeout(r, 500));
 
-      // Step 2: Signing transaction (Smart Contract Call)
       setPublishStep(2);
       const accessPrice = isTokenGated ? BigInt(parseFloat(price) * 10_000_000) : BigInt(0);
       
@@ -66,15 +62,12 @@ export function Write() {
         accessPrice
       );
       
-      // Step 3: Confirming on-chain + extract token ID
       setPublishStep(3);
       const txHash = result?.hash || `tx_${generateMockId()}`;
       setPublishTxHash(txHash);
 
-      // ── FIX: Extract real token_id from contract result instead of random ──
       let extractedTokenId = extractTokenIdFromResult(result);
       if (extractedTokenId === null) {
-        // Fallback: query the contract for the next token ID and subtract 1
         try {
           const nextId = await readSorobanContract(CONTRACT_METHODS.GET_NEXT_TOKEN_ID);
           if (nextId && typeof nextId === 'number') {
@@ -84,7 +77,6 @@ export function Write() {
           console.error('Fallback token ID fetch failed:', e);
         }
       }
-      // Final fallback if everything fails
       if (extractedTokenId === null) {
         extractedTokenId = Date.now();
         console.warn('Using timestamp as token ID fallback — data may be inconsistent');
@@ -92,7 +84,6 @@ export function Write() {
 
       await new Promise(r => setTimeout(r, 1000));
 
-      // Complete — add to local store
       const articleId = `onchain-${extractedTokenId}`;
       setNewArticleId(articleId);
 
@@ -104,7 +95,7 @@ export function Write() {
         content: contentBody,
         authorPublicKey: publicKey,
         createdAt: Date.now(),
-        contentHash: cid, // Now storing IPFS CID!
+        contentHash: cid,
         isTokenGated,
         price: isTokenGated ? Number(price) : undefined,
         totalRaised: 0,
@@ -117,21 +108,21 @@ export function Write() {
       };
 
       addArticle(newArticle);
-      setPublishStep(4); // Complete
+      setPublishStep(4);
 
       toast.addToast({
         type: 'success',
-        title: 'Content NFT Minted!',
+        title: t('toast.nft_minted_title'),
         message: `"${title}" is now on the Stellar ledger.`,
       });
 
     } catch (e: any) {
       console.error(e);
-      setPublishError(e?.message || 'Unknown error occurred during publishing.');
+      setPublishError(e?.message || t('toast.publish_failed_default'));
       toast.addToast({
         type: 'error',
-        title: 'Publish Failed',
-        message: e?.message || 'Transaction was rejected or timed out.',
+        title: t('toast.publish_failed_title'),
+        message: e?.message || t('toast.publish_failed_default'),
       });
     }
   };
@@ -143,7 +134,6 @@ export function Write() {
     }
   };
 
-  // Not connected state
   if (!isConnected) {
     return (
       <div className="max-w-lg mx-auto text-center py-24 animate-fadeIn">
@@ -151,12 +141,12 @@ export function Write() {
           <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-white/[0.03] flex items-center justify-center">
             <AlertCircle className="w-7 h-7 text-[var(--color-text-muted)]" />
           </div>
-          <h2 className="text-2xl font-serif mb-3">{t('write.wallet_required.title', 'Wallet Required')}</h2>
+          <h2 className="text-2xl font-serif mb-3">{t('write.wallet_required.title')}</h2>
           <p className="text-[var(--color-text-dim)] mb-2 text-[14px] leading-relaxed">
-            {t('write.wallet_required.description', 'Connect your Freighter wallet to publish content on the Stellar network.')}
+            {t('write.wallet_required.description')}
           </p>
           <p className="text-[11px] font-mono uppercase tracking-wider text-[var(--color-text-muted)]">
-            {t('write.wallet_required.identity', 'Your on-chain identity is linked to your wallet')}
+            {t('write.wallet_required.identity')}
           </p>
         </div>
       </div>
@@ -169,8 +159,8 @@ export function Write() {
         {/* Header */}
         <div className="flex items-center justify-between border-b border-[var(--color-border)] pb-6">
           <div>
-            <span className="eyebrow">Create</span>
-            <h1 className="text-[40px] font-serif tracking-[-1px] leading-[1.1]">New Entry</h1>
+            <span className="eyebrow">{t('write.header.eyebrow')}</span>
+            <h1 className="text-[40px] font-serif tracking-[-1px] leading-[1.1]">{t('write.header.title')}</h1>
           </div>
           <button 
             onClick={handlePublish}
@@ -178,7 +168,7 @@ export function Write() {
             className="btn-primary flex items-center gap-2 disabled:opacity-30 disabled:cursor-not-allowed"
           >
             <Save className="w-4 h-4" />
-            Publish to Chain
+            {t('write.header.publish_btn')}
           </button>
         </div>
 
@@ -188,14 +178,14 @@ export function Write() {
           <div className="lg:col-span-2 space-y-6">
             <input
               type="text"
-              placeholder="Article Title..."
+              placeholder={t('write.placeholders.title')}
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               className="w-full bg-transparent text-[40px] font-serif tracking-tight outline-none placeholder-[var(--color-text-muted)] pb-4 border-b border-[var(--color-border)] focus:border-primary transition-colors"
             />
             
             <textarea
-              placeholder="A short excerpt to preview your article..."
+              placeholder={t('write.placeholders.excerpt')}
               value={excerpt}
               onChange={(e) => setExcerpt(e.target.value)}
               className="w-full bg-transparent text-[16px] text-[var(--color-text-dim)] outline-none placeholder-[var(--color-text-muted)] resize-none leading-relaxed"
@@ -205,7 +195,7 @@ export function Write() {
             <MarkdownEditor
               value={content}
               onChange={setContent}
-              placeholder="Write your story using Markdown..."
+              placeholder={t('write.placeholders.content')}
             />
           </div>
 
@@ -214,16 +204,16 @@ export function Write() {
             {/* Storage Info */}
             <div className="glass-panel p-5">
               <h3 className="text-[10px] font-mono uppercase tracking-[2px] text-primary mb-4 flex items-center justify-between">
-                <span>On-Chain Storage</span>
+                <span>{t('write.sidebar.storage_title')}</span>
                 <UploadCloud className="w-4 h-4" />
               </h3>
               <p className="text-[12px] text-[var(--color-text-dim)] leading-relaxed mb-4">
-                Your content will be hashed (SHA-256) and the hash will be permanently stored on the Stellar ledger via a Soroban smart contract.
+                {t('write.sidebar.storage_desc')}
               </p>
               <div className="p-3 bg-[var(--color-bg-base)] border border-[var(--color-border)] rounded-sm">
-                <div className="label-sm mb-1">Content Hash</div>
+                <div className="label-sm mb-1">{t('write.sidebar.content_hash_label')}</div>
                 <div className="text-[11px] font-mono text-[var(--color-text-dim)] break-all">
-                  {content ? 'Will be computed on publish' : 'pending...'}
+                  {content ? t('write.sidebar.content_hash_will_compute') : t('write.sidebar.content_hash_pending')}
                 </div>
               </div>
             </div>
@@ -231,7 +221,7 @@ export function Write() {
             {/* Monetization */}
             <div className="glass-panel p-5">
               <h3 className="text-[10px] font-mono uppercase tracking-[2px] text-accent mb-4 flex items-center justify-between">
-                <span>Monetization</span>
+                <span>{t('write.sidebar.monetization_title')}</span>
                 <Settings className="w-4 h-4" />
               </h3>
               
@@ -247,12 +237,12 @@ export function Write() {
                   }`}>
                     {isTokenGated && <Lock className="w-3 h-3 text-white" />}
                   </div>
-                  <span className="text-[13px] font-medium">Token-gate this article</span>
+                  <span className="text-[13px] font-medium">{t('write.sidebar.token_gate_label')}</span>
                 </div>
 
                 {isTokenGated && (
                   <div className="p-4 bg-[var(--color-bg-base)] border border-[var(--color-border)] rounded-sm space-y-3 animate-fadeIn">
-                    <label className="block label-sm">Access Price (XLM)</label>
+                    <label className="block label-sm">{t('write.sidebar.access_price_label')}</label>
                     <div className="flex items-center gap-2">
                       <input 
                         type="number" 
@@ -266,7 +256,7 @@ export function Write() {
                     <div className="flex items-start gap-2 mt-2">
                       <Coins className="w-3 h-3 text-accent mt-0.5 shrink-0" />
                       <p className="text-[10px] text-[var(--color-text-dim)] leading-relaxed">
-                        Readers pay this amount via the Soroban contract. 100% goes directly to your wallet.
+                        {t('write.sidebar.access_price_hint')}
                       </p>
                     </div>
                   </div>
@@ -276,19 +266,19 @@ export function Write() {
 
             {/* Network info */}
             <div className="glass-panel p-5">
-              <h3 className="label-sm mb-3">Network</h3>
+              <h3 className="label-sm mb-3">{t('write.sidebar.network_title')}</h3>
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-[12px]">
-                  <span className="text-[var(--color-text-dim)]">Chain</span>
-                  <span className="font-mono">Stellar Testnet</span>
+                  <span className="text-[var(--color-text-dim)]">{t('write.sidebar.network_chain')}</span>
+                  <span className="font-mono">{t('write.sidebar.network_chain_val')}</span>
                 </div>
                 <div className="flex items-center justify-between text-[12px]">
-                  <span className="text-[var(--color-text-dim)]">Contract</span>
-                  <span className="font-mono text-primary">Soroban</span>
+                  <span className="text-[var(--color-text-dim)]">{t('write.sidebar.network_contract')}</span>
+                  <span className="font-mono text-primary">{t('write.sidebar.network_contract_val')}</span>
                 </div>
                 <div className="flex items-center justify-between text-[12px]">
-                  <span className="text-[var(--color-text-dim)]">Wallet</span>
-                  <span className="font-mono text-accent">Freighter</span>
+                  <span className="text-[var(--color-text-dim)]">{t('write.sidebar.network_wallet')}</span>
+                  <span className="font-mono text-accent">{t('write.sidebar.network_wallet_val')}</span>
                 </div>
               </div>
             </div>
@@ -296,7 +286,6 @@ export function Write() {
         </div>
       </div>
 
-      {/* Publish Modal */}
       <PublishModal
         isOpen={showPublishModal}
         currentStep={publishStep}
