@@ -14,6 +14,7 @@ import {
   isStellarAddress,
   loadWalletFromStorage,
   clearWallet as clearQuickWallet,
+  fundFromFriendbot,
 } from '../lib/quick-wallet';
 
 export type WalletProvider = 'freighter' | 'quick-wallet' | null;
@@ -25,6 +26,7 @@ interface WalletState {
   connectError: string | null;
   balance: string;
   provider: WalletProvider;
+  isFunding: boolean;
 
   // Freighter
   connect: () => Promise<void>;
@@ -34,6 +36,9 @@ interface WalletState {
 
   // محاولة استرجاع محفظة محفوظة في localStorage
   tryRestoreQuickWallet: () => Promise<boolean>;
+
+  // تمويل يدوي من Friendbot (testnet)
+  fundCurrentWallet: () => Promise<boolean>;
 
   disconnect: () => void;
   refreshBalance: () => Promise<void>;
@@ -46,6 +51,7 @@ export const useWallet = create<WalletState>((set, get) => ({
   connectError: null,
   balance: '0',
   provider: null,
+  isFunding: false,
 
   // ── Freighter ───────────────────────────────────────────────────────────────
   connect: async () => {
@@ -175,6 +181,58 @@ export const useWallet = create<WalletState>((set, get) => ({
       provider: null,
     });
     useToast.getState().addToast({ type: 'info', title: 'تم قطع الاتصال' });
+  },
+
+  // ── تمويل يدوي من Friendbot (testnet) ────────────────────────────────────────
+  fundCurrentWallet: async () => {
+    const { publicKey } = get();
+    if (!publicKey) return false;
+
+    const toast = useToast.getState();
+    set({ isFunding: true });
+
+    const loadingId = toast.addToast({
+      type: 'loading',
+      title: 'جاري ضخ XLM',
+      message: 'Friendbot يُمول محفظتك...',
+    });
+
+    try {
+      const result = await fundFromFriendbot(publicKey);
+      set({ isFunding: false });
+
+      if (result.funded) {
+        set({
+          balance: result.balance.toLocaleString(undefined, {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 2,
+          }),
+        });
+        toast.updateToast(loadingId, {
+          type: 'success',
+          title: result.alreadyFunded
+            ? 'الرصيد مُحدَّث'
+            : '✅ تم الضخ بنجاح',
+          message: `الرصيد الحالي: ${result.balance.toLocaleString()} XLM`,
+        });
+        return true;
+      } else {
+        toast.updateToast(loadingId, {
+          type: 'error',
+          title: 'فشل التمويل',
+          message: result.error || 'حاول مرة أخرى بعد دقيقة',
+        });
+        return false;
+      }
+    } catch (e: any) {
+      set({ isFunding: false });
+      toast.updateToast(loadingId, {
+        type: 'error',
+        title: 'فشل التمويل',
+        message: e?.message || 'خطأ غير متوقع',
+      });
+      return false;
+    }
   },
 
   refreshBalance: async () => {

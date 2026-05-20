@@ -125,18 +125,93 @@ export function clearWallet() {
 
 // ─── Friendbot للتمويل التلقائي على testnet ────────────────────────────────
 
-export async function fundFromFriendbot(address: string): Promise<boolean> {
+export interface FundResult {
+  funded: boolean;
+  balance: number;       // الرصيد الحالي بـ XLM
+  alreadyFunded: boolean; // الحساب كان مُموَّل من قبل
+  error?: string;
+}
+
+/**
+ * فحص الرصيد الحالي لحساب على Horizon testnet.
+ * يُرجع 0 إن لم يكن الحساب موجوداً.
+ */
+async function fetchAccountBalance(address: string): Promise<number> {
+  try {
+    const res = await fetch(
+      `https://horizon-testnet.stellar.org/accounts/${address}`
+    );
+    if (!res.ok) return 0; // 404 = الحساب غير موجود (غير مُموَّل)
+    const data = await res.json();
+    const native = data.balances?.find((b: any) => b.asset_type === 'native');
+    return parseFloat(native?.balance || '0');
+  } catch {
+    return 0;
+  }
+}
+
+/**
+ * تمويل محفظة من Friendbot (testnet) مع انتظار الرصيد فعلياً على Horizon.
+ *
+ * @param address              عنوان Stellar
+ * @param options.pollTimeout  مدة الانتظار القصوى (ms) — افتراضي 20 ثانية
+ * @returns                    نتيجة العملية مع الرصيد الفعلي
+ */
+export async function fundFromFriendbot(
+  address: string,
+  options: { pollTimeout?: number } = {}
+): Promise<FundResult> {
+  const { pollTimeout = 20_000 } = options;
+
+  // 1) فحص هل الحساب مُموَّل بالفعل؟
+  const initialBalance = await fetchAccountBalance(address);
+  if (initialBalance > 0) {
+    console.info(
+      `[quick-wallet] الحساب مُموَّل مسبقاً (${initialBalance} XLM): ${address}`
+    );
+    return { funded: true, balance: initialBalance, alreadyFunded: true };
+  }
+
+  // 2) استدعاء Friendbot
+  let friendbotOk = false;
+  let friendbotError: string | undefined;
   try {
     const res = await fetch(`https://friendbot.stellar.org?addr=${address}`);
     if (res.ok) {
-      console.info(`[quick-wallet] ✅ مُموَّلة: ${address}`);
-      return true;
+      friendbotOk = true;
+    } else {
+      // Friendbot أحياناً يُرجع 400 إن كان الحساب موجوداً
+      const errBody = await res.json().catch(() => ({}));
+      friendbotError =
+        errBody?.detail || errBody?.title || `HTTP ${res.status}`;
+      // تابع الـ polling — الحساب قد يكون أُنشئ بطريقة أخرى
+      console.warn('[quick-wallet] Friendbot رفض:', friendbotError);
     }
-    return false;
-  } catch (e) {
-    console.warn('[quick-wallet] Friendbot فشل (الحساب قد يكون مُموَّلاً مسبقاً):', e);
-    return false;
+  } catch (e: any) {
+    friendbotError = e?.message || 'Network error';
+    console.warn('[quick-wallet] Friendbot fetch فشل:', friendbotError);
   }
+
+  // 3) Polling للرصيد حتى يظهر فعلياً على Horizon
+  const startTime = Date.now();
+  while (Date.now() - startTime < pollTimeout) {
+    await new Promise((r) => setTimeout(r, 1500));
+    const balance = await fetchAccountBalance(address);
+    if (balance > 0) {
+      console.info(
+        `[quick-wallet] ✅ مُموَّلة بـ ${balance} XLM: ${address}`
+      );
+      return { funded: true, balance, alreadyFunded: false };
+    }
+  }
+
+  // 4) timeout
+  return {
+    funded: false,
+    balance: 0,
+    alreadyFunded: false,
+    error: friendbotError || 'انتهت مهلة انتظار Friendbot',
+  };
 }
 
 // ─── التوقيع المحلي ───────────────────────────────────────────────────────────

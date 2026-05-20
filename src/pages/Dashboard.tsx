@@ -4,14 +4,14 @@ import { useToast } from '../store/useToast';
 import { formatAddress, addressGradient } from '../lib/utils';
 import { registerAuthor, fetchAuthorProfile, fetchAuthorArticlesFromChain } from '../lib/stellar';
 import { stroopsToXlm } from '../lib/contract';
-import { Wallet, TrendingUp, FileText, ArrowUpRight, Shield, Coins, UserPlus, Eye, Heart, Hash, Loader2, RefreshCw } from 'lucide-react';
+import { Wallet, TrendingUp, FileText, ArrowUpRight, Shield, Coins, UserPlus, Eye, Heart, Hash, Loader2, RefreshCw, Sparkles } from 'lucide-react';
 import { Link, Navigate } from 'react-router-dom';
 import { useState, useEffect, useCallback }  from 'react';
 import { useTranslation } from 'react-i18next';
 
 export function Dashboard() {
   const { t } = useTranslation();
-  const { isConnected, publicKey, balance } = useWallet();
+  const { isConnected, publicKey, balance, fundCurrentWallet, isFunding } = useWallet();
   const localArticles = useAppStore(state => state.articles);
   const registeredAuthor = useAppStore(state => state.registeredAuthor);
   const setRegisteredAuthor = useAppStore(state => state.setRegisteredAuthor);
@@ -203,10 +203,29 @@ export function Dashboard() {
             )}
           </div>
         </div>
-        <div className="flex items-center gap-2 px-4 py-2 bg-[var(--color-bg-base)] border border-[var(--color-border)] rounded-sm">
-          <Wallet className="w-4 h-4 text-accent" />
-          <span className="text-[14px] font-mono text-accent font-medium">{balance} XLM</span>
-          <span className="label-sm ml-1">Testnet</span>
+        <div className="flex flex-col items-end gap-2">
+          <div className="flex items-center gap-2 px-4 py-2 bg-[var(--color-bg-base)] border border-[var(--color-border)] rounded-sm">
+            <Wallet className="w-4 h-4 text-accent" />
+            <span className="text-[14px] font-mono text-accent font-medium">{balance} XLM</span>
+            <span className="label-sm ml-1">Testnet</span>
+          </div>
+          {/* زر تمويل سريع — يظهر دائماً على testnet */}
+          <button
+            onClick={() => fundCurrentWallet()}
+            disabled={isFunding}
+            className="flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-wider text-primary hover:text-white px-2 py-1 rounded-sm border border-primary/20 hover:border-primary/60 transition-all disabled:opacity-50 cursor-pointer"
+            title="ضخ XLM من Friendbot (testnet)"
+          >
+            {isFunding ? (
+              <>
+                <Loader2 className="w-3 h-3 animate-spin" /> جاري الضخ...
+              </>
+            ) : (
+              <>
+                <Sparkles className="w-3 h-3" /> ضخ XLM من Friendbot
+              </>
+            )}
+          </button>
         </div>
       </div>
 

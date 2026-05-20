@@ -36,16 +36,18 @@ interface EmailAuthModalProps {
 }
 
 type Tab = 'create' | 'import';
-type Step = 'choose' | 'creating' | 'created' | 'importing' | 'error';
+type Step = 'choose' | 'creating' | 'funding' | 'created' | 'importing' | 'error';
 
 export function EmailAuthModal({ isOpen, onClose }: EmailAuthModalProps) {
   const connectQuickWallet = useWallet((s) => s.connectQuickWallet);
+  const refreshBalance = useWallet((s) => s.refreshBalance);
 
   const [tab, setTab] = useState<Tab>('create');
   const [step, setStep] = useState<Step>('choose');
   const [error, setError] = useState<string | null>(null);
   const [createdAddress, setCreatedAddress] = useState<string | null>(null);
   const [createdSecret, setCreatedSecret] = useState<string | null>(null);
+  const [fundedBalance, setFundedBalance] = useState<number | null>(null);
   const [showSecret, setShowSecret] = useState(false);
   const [secretCopied, setSecretCopied] = useState(false);
   const [addressCopied, setAddressCopied] = useState(false);
@@ -60,6 +62,7 @@ export function EmailAuthModal({ isOpen, onClose }: EmailAuthModalProps) {
       setError(null);
       setCreatedAddress(null);
       setCreatedSecret(null);
+      setFundedBalance(null);
       setShowSecret(false);
       setSecretCopied(false);
       setAddressCopied(false);
@@ -71,21 +74,36 @@ export function EmailAuthModal({ isOpen, onClose }: EmailAuthModalProps) {
 
   const handleCreate = async () => {
     setError(null);
-    setStep('creating');
     try {
+      // 1. إنشاء المحفظة محلياً
+      setStep('creating');
       const kp = generateNewWallet();
       const address = kp.publicKey();
       const secret = kp.secret();
-
-      // تمويل في الخلفية (لا ننتظره لإظهار الـ UI)
-      fundFromFriendbot(address);
-
-      // ربط بالواجهة
-      connectQuickWallet(address);
-
       setCreatedAddress(address);
       setCreatedSecret(secret);
-      setStep('created');
+
+      // 2. تمويل عبر Friendbot وانتظار الرصيد
+      setStep('funding');
+      const result = await fundFromFriendbot(address);
+
+      if (result.funded) {
+        setFundedBalance(result.balance);
+        connectQuickWallet(address);
+        // تحديث الرصيد في useWallet ليعرض الرقم الفعلي
+        setTimeout(() => refreshBalance(), 500);
+        setStep('created');
+      } else {
+        // فشل التمويل لكن المحفظة أُنشئت — اعرضها مع تحذير
+        connectQuickWallet(address);
+        setError(
+          result.error
+            ? `تعذّر التمويل التلقائي: ${result.error}. يمكنك المحاولة من Dashboard.`
+            : 'تعذّر تمويل المحفظة. يمكنك المحاولة لاحقاً من Dashboard.'
+        );
+        setFundedBalance(0);
+        setStep('created');
+      }
     } catch (e: any) {
       console.error('[QuickWallet] generate error:', e);
       setError(e?.message || 'فشل إنشاء المحفظة');
@@ -102,7 +120,15 @@ export function EmailAuthModal({ isOpen, onClose }: EmailAuthModalProps) {
     setStep('importing');
     try {
       const kp = importWalletFromSecret(importValue.trim());
-      connectQuickWallet(kp.publicKey());
+      const address = kp.publicKey();
+      connectQuickWallet(address);
+
+      // فحص الرصيد — إن كان الحساب جديداً (غير مُمَوَّل)، حاول تمويله
+      const result = await fundFromFriendbot(address, { pollTimeout: 8000 });
+      if (result.funded && !result.alreadyFunded) {
+        setTimeout(() => refreshBalance(), 500);
+      }
+
       setTimeout(() => onClose(), 800);
     } catch (e: any) {
       console.error('[QuickWallet] import error:', e);
@@ -146,11 +172,15 @@ export function EmailAuthModal({ isOpen, onClose }: EmailAuthModalProps) {
     <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
       <div
         className="absolute inset-0 bg-black/75 backdrop-blur-md"
-        onClick={step === 'creating' || step === 'importing' ? undefined : onClose}
+        onClick={
+          step === 'creating' || step === 'funding' || step === 'importing'
+            ? undefined
+            : onClose
+        }
       />
 
       <div className="relative glass-panel-elevated w-full max-w-md p-8 animate-slideUp">
-        {step !== 'creating' && step !== 'importing' && (
+        {step !== 'creating' && step !== 'funding' && step !== 'importing' && (
           <button
             onClick={onClose}
             className="absolute top-4 right-4 text-[var(--color-text-muted)] hover:text-white transition-colors cursor-pointer p-1"
@@ -296,6 +326,32 @@ export function EmailAuthModal({ isOpen, onClose }: EmailAuthModalProps) {
           </div>
         )}
 
+        {/* ── جاري التمويل من Friendbot ────────────────────────────── */}
+        {step === 'funding' && (
+          <div className="text-center space-y-4 py-6">
+            <div className="w-14 h-14 mx-auto rounded-full bg-accent/10 border border-accent/30 flex items-center justify-center">
+              <Loader2 className="w-7 h-7 text-accent animate-spin" />
+            </div>
+            <div>
+              <h3 className="text-lg font-serif mb-1">جاري ضخ XLM من Friendbot</h3>
+              <p className="text-[12px] text-[var(--color-text-dim)] leading-relaxed">
+                10,000 XLM في الطريق إلى محفظتك...
+              </p>
+            </div>
+            <div className="p-2 bg-[var(--color-bg-base)] border border-[var(--color-border)] rounded-lg">
+              <div className="text-[9px] font-mono text-[var(--color-text-muted)] uppercase tracking-wider mb-1">
+                المحفظة الجديدة
+              </div>
+              <div className="text-[10px] font-mono text-accent break-all" dir="ltr">
+                {createdAddress}
+              </div>
+            </div>
+            <p className="text-[10px] text-[var(--color-text-muted)]">
+              قد يستغرق ذلك حتى 20 ثانية...
+            </p>
+          </div>
+        )}
+
         {/* ── جاري الاستيراد ────────────────────────────────────────── */}
         {step === 'importing' && (
           <div className="text-center space-y-4 py-6">
@@ -319,6 +375,34 @@ export function EmailAuthModal({ isOpen, onClose }: EmailAuthModalProps) {
                 احفظ المفتاح السري في مكان آمن — لن نعرضه مرة أخرى.
               </p>
             </div>
+
+            {/* بطاقة الرصيد بعد التمويل */}
+            {fundedBalance !== null && fundedBalance > 0 && (
+              <div className="p-4 bg-accent/5 border border-accent/30 rounded-lg text-center">
+                <div className="text-[10px] font-mono text-accent uppercase tracking-wider mb-1">
+                  💰 تم ضخ XLM في محفظتك
+                </div>
+                <div className="text-2xl font-serif text-accent">
+                  {fundedBalance.toLocaleString(undefined, {
+                    maximumFractionDigits: 2,
+                  })}{' '}
+                  <span className="text-sm">XLM</span>
+                </div>
+                <div className="text-[10px] text-[var(--color-text-dim)] mt-1">
+                  جاهزة للنشر والمعاملات على Stellar Testnet
+                </div>
+              </div>
+            )}
+
+            {/* تحذير لو فشل التمويل */}
+            {error && step === 'created' && (
+              <div className="p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 text-yellow-500 mt-0.5 shrink-0" />
+                <p className="text-[11px] text-yellow-200 leading-relaxed">
+                  {error}
+                </p>
+              </div>
+            )}
 
             {/* العنوان */}
             <div className="p-3 bg-[var(--color-bg-base)] border border-[var(--color-border)] rounded-lg">
