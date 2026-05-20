@@ -4,7 +4,7 @@ import { formatAddress } from '../lib/utils';
 import { Wallet, PenSquare, Compass, LayoutDashboard, Gem, Menu, X, Sun, Moon, Zap, Hash, Mail, LogOut, ChevronDown } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { usePrivy } from '../lib/privy';
+import { usePrivy, useLogout } from '../lib/privy';
 import { EmailAuthModal } from './EmailAuthModal';
 
 export function Navbar() {
@@ -19,7 +19,8 @@ export function Navbar() {
   ];
 
   const { isConnected, publicKey, connect, disconnect, isConnecting, balance, provider } = useWallet();
-  const { authenticated, user: privyUser, logout: privyLogout } = usePrivy();
+  const { user: privyUser } = usePrivy();
+  const { logout: privyLogout } = useLogout();
   const location = useLocation();
   const [mobileOpen, setMobileOpen]   = useState(false);
   const [scrolled, setScrolled]       = useState(false);
@@ -65,8 +66,9 @@ export function Navbar() {
     ? `${publicKey.slice(0, 4)}...${publicKey.slice(-4)}`
     : '';
 
-  const displayName = provider === 'privy' && privyUser?.email
-    ? privyUser.email.split('@')[0]
+  const privyEmail = (privyUser as any)?.email?.address || (privyUser as any)?.email;
+  const displayName = provider === 'privy' && privyEmail
+    ? String(privyEmail).split('@')[0]
     : displayAddress;
 
   return (

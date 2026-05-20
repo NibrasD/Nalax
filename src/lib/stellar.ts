@@ -1,5 +1,4 @@
 import { rpc, TransactionBuilder, Networks, xdr, Contract, Asset, Operation, Memo, nativeToScVal, scValToNative, Address } from '@stellar/stellar-sdk';
-import { rpc, TransactionBuilder, Networks, xdr, Contract, Asset, Operation, Memo, nativeToScVal, scValToNative, Address } from '@stellar/stellar-sdk';
 import { signTransaction } from '@stellar/freighter-api';
 import { CONTRACT_METHODS } from './contract';
 

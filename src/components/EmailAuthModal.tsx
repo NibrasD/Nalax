@@ -1,56 +1,146 @@
 /**
- * EmailAuthModal — نافذة تسجيل الدخول بالإيميل عبر Privy
- * ──────────────────────────────────────────────────────────
- * الخطوة 1: المستخدم يدخل إيميله → يُرسَل OTP
- * الخطوة 2: يدخل الـ OTP → تُنشأ محفظة Stellar تلقائياً
+ * EmailAuthModal — تسجيل دخول حقيقي عبر Privy
+ * ──────────────────────────────────────────────
+ * يستخدم @privy-io/react-auth الحقيقي:
+ *   1. useLoginWithEmail().sendCode({ email })  → Privy يرسل OTP حقيقي
+ *   2. useLoginWithEmail().loginWithCode({ code }) → تسجيل الدخول
+ *   3. useCreateWallet().createWallet({ chainType: 'stellar' }) → محفظة Stellar
  */
 
 import { useState, useRef, useEffect } from 'react';
-import { Mail, ArrowRight, Key, Loader2, X, CheckCircle, Wallet, Shield } from 'lucide-react';
-import { usePrivy, persistSessionOTP } from '../lib/privy';
+import {
+  Mail,
+  Key,
+  Loader2,
+  X,
+  CheckCircle,
+  Wallet,
+  Shield,
+  AlertTriangle,
+} from 'lucide-react';
+import {
+  useLoginWithEmail,
+  usePrivy,
+  useCreateWallet,
+  useWallets,
+} from '../lib/privy';
 import { useWallet } from '../store/useWallet';
+import { findStellarWallet } from '../lib/privy-stellar';
 
 interface EmailAuthModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
+type Step = 'email' | 'otp' | 'creating-wallet' | 'success';
+
 export function EmailAuthModal({ isOpen, onClose }: EmailAuthModalProps) {
-  const { sendOTP, verifyOTP, otpPending, authError, authenticated, user } = usePrivy();
-  const connectWithPrivy = useWallet(s => s.connectWithPrivy);
+  const { authenticated, user, ready } = usePrivy();
+  const { sendCode, loginWithCode, state } = useLoginWithEmail();
+  const { createWallet } = useCreateWallet();
+  const { wallets } = useWallets();
+  const connectWithPrivy = useWallet((s) => s.connectWithPrivy);
 
   const [email, setEmail] = useState('');
-  const [otp, setOtp] = useState(['', '', '', '', '', '']);
-  const [step, setStep] = useState<'email' | 'otp' | 'success'>('email');
+  const [otp, setOtp] = useState(['', '', '', '', '', '', '', '']); // Privy OTP عادةً 6-8 أرقام
+  const [step, setStep] = useState<Step>('email');
   const [loading, setLoading] = useState(false);
-  const [localError, setLocalError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [stellarAddress, setStellarAddress] = useState<string | null>(null);
 
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const otpLength = 6; // Privy افتراضياً يستخدم 6 أرقام
 
-  // إذا أصبح المستخدم authenticated → نبلّغ useWallet
+  // ── إعادة تعيين الحالة عند الفتح/الإغلاق ─────────────────────────────────────
   useEffect(() => {
-    if (authenticated && user?.wallet?.address && step !== 'success') {
-      setStep('success');
-      connectWithPrivy(user.wallet.address);
-      setTimeout(onClose, 1800);
+    if (!isOpen) {
+      setStep('email');
+      setEmail('');
+      setOtp(Array(otpLength).fill(''));
+      setError(null);
+      setLoading(false);
+      setStellarAddress(null);
     }
-  }, [authenticated, user, step, connectWithPrivy, onClose]);
+  }, [isOpen]);
+
+  // ── متابعة حالة Privy: عند تسجيل الدخول → إنشاء محفظة Stellar ───────────────
+  useEffect(() => {
+    if (!authenticated || !ready) return;
+    if (step !== 'otp' && step !== 'creating-wallet') return;
+
+    // المستخدم سُجّل دخوله. نتحقق من وجود محفظة Stellar
+    const existingStellar = findStellarWallet(wallets);
+
+    if (existingStellar) {
+      // محفظة Stellar موجودة بالفعل
+      handleStellarReady(existingStellar.address);
+      return;
+    }
+
+    // لا توجد محفظة Stellar → أنشئها الآن
+    setStep('creating-wallet');
+    (async () => {
+      try {
+        const result: any = await createWallet({ chainType: 'stellar' as any });
+        const addr = result?.address || result?.wallet?.address;
+        if (addr) {
+          handleStellarReady(addr);
+        } else {
+          // قد يحتاج بضع ms لتحديث useWallets
+          // سيُلتقط في الـ effect التالي
+        }
+      } catch (e: any) {
+        console.error('createWallet error:', e);
+        setError(e?.message || 'فشل إنشاء محفظة Stellar.');
+      }
+    })();
+  }, [authenticated, ready, wallets, step]);
+
+  // ── متابعة wallets[] لو تأخّر إنشاء محفظة ───────────────────────────────────
+  useEffect(() => {
+    if (step !== 'creating-wallet') return;
+    const stellar = findStellarWallet(wallets);
+    if (stellar?.address) {
+      handleStellarReady(stellar.address);
+    }
+  }, [wallets, step]);
+
+  function handleStellarReady(address: string) {
+    setStellarAddress(address);
+    setStep('success');
+    connectWithPrivy(address);
+
+    // تمويل تلقائي من Friendbot على testnet (آمن — Friendbot يُموّل أي عنوان جديد)
+    fetch(`https://friendbot.stellar.org?addr=${address}`)
+      .then(() => console.info(`✅ محفظة جديدة مُموَّلة: ${address}`))
+      .catch(() => {
+        // Friendbot قد يفشل لو الحساب موجود بالفعل — هذا طبيعي
+      });
+
+    setTimeout(() => onClose(), 2200);
+  }
 
   if (!isOpen) return null;
 
-  const handleSendOTP = async () => {
-    setLocalError(null);
+  // ── التحقق من Privy App ID ──────────────────────────────────────────────────
+  const hasAppId = !!import.meta.env.VITE_PRIVY_APP_ID &&
+                   import.meta.env.VITE_PRIVY_APP_ID !== 'your_privy_app_id_here';
+
+  // ── معالجات الأحداث ─────────────────────────────────────────────────────────
+  const handleSendCode = async () => {
+    setError(null);
     if (!email.trim() || !email.includes('@')) {
-      setLocalError('أدخل بريداً إلكترونياً صحيحاً');
+      setError('أدخل بريداً إلكترونياً صحيحاً');
       return;
     }
     setLoading(true);
     try {
-      await sendOTP(email.trim().toLowerCase());
+      await sendCode({ email: email.trim().toLowerCase() });
       setStep('otp');
       setTimeout(() => otpRefs.current[0]?.focus(), 100);
     } catch (e: any) {
-      setLocalError(e?.message || 'حدث خطأ. حاول مجدداً.');
+      console.error('sendCode error:', e);
+      setError(e?.message || 'تعذّر إرسال رمز التحقق.');
     } finally {
       setLoading(false);
     }
@@ -61,9 +151,13 @@ export function EmailAuthModal({ isOpen, onClose }: EmailAuthModalProps) {
     const newOtp = [...otp];
     newOtp[index] = value.slice(-1);
     setOtp(newOtp);
-    if (value && index < 5) otpRefs.current[index + 1]?.focus();
-    if (newOtp.every(d => d !== '')) {
-      handleVerifyOTP(newOtp.join(''));
+
+    if (value && index < otpLength - 1) {
+      otpRefs.current[index + 1]?.focus();
+    }
+    // إرسال تلقائي عند إكمال 6 أرقام
+    if (newOtp.slice(0, otpLength).every((d) => d !== '')) {
+      handleVerifyOTP(newOtp.slice(0, otpLength).join(''));
     }
   };
 
@@ -73,48 +167,60 @@ export function EmailAuthModal({ isOpen, onClose }: EmailAuthModalProps) {
     }
   };
 
-  const handleVerifyOTP = async (code?: string) => {
-    const finalCode = code || otp.join('');
-    if (finalCode.length !== 6) return;
-    setLocalError(null);
+  const handleVerifyOTP = async (codeOverride?: string) => {
+    const code = (codeOverride ?? otp.slice(0, otpLength).join('')).trim();
+    if (code.length !== otpLength) return;
+    setError(null);
     setLoading(true);
     try {
-      await verifyOTP(email.trim().toLowerCase(), finalCode);
-      // حفظ OTP في session للتوقيع لاحقاً
-      persistSessionOTP(email.trim().toLowerCase(), finalCode);
-      setStep('success');
+      await loginWithCode({ code });
+      // الـ effect أعلاه سيتولى إنشاء المحفظة
     } catch (e: any) {
-      setLocalError(authError || e?.message || 'الرمز غير صحيح');
-      setOtp(['', '', '', '', '', '']);
+      console.error('loginWithCode error:', e);
+      setError(e?.message || 'الرمز غير صحيح. حاول مجدداً.');
+      setOtp(Array(otpLength).fill(''));
       setTimeout(() => otpRefs.current[0]?.focus(), 100);
     } finally {
       setLoading(false);
     }
   };
 
-  const error = localError || authError;
+  const isSending = state.status === 'sending-code' || loading;
+  const isSubmitting = state.status === 'submitting-code' || loading;
 
+  // ── UI ──────────────────────────────────────────────────────────────────────
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
-      {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/75 backdrop-blur-md"
-        onClick={step !== 'success' ? onClose : undefined}
+        onClick={step !== 'success' && step !== 'creating-wallet' ? onClose : undefined}
       />
 
-      {/* Modal */}
       <div className="relative glass-panel-elevated w-full max-w-sm p-8 animate-slideUp">
-        {/* Close */}
-        {step !== 'success' && (
+        {step !== 'success' && step !== 'creating-wallet' && (
           <button
             onClick={onClose}
             className="absolute top-4 right-4 text-[var(--color-text-muted)] hover:text-white transition-colors cursor-pointer p-1"
+            aria-label="إغلاق"
           >
             <X className="w-4 h-4" />
           </button>
         )}
 
-        {/* ── Step: Email ─────────────────────────────────────── */}
+        {/* تحذير عند غياب App ID */}
+        {!hasAppId && step === 'email' && (
+          <div className="mb-5 p-3 rounded-lg border border-yellow-500/30 bg-yellow-500/10 flex items-start gap-2">
+            <AlertTriangle className="w-4 h-4 text-yellow-500 mt-0.5 shrink-0" />
+            <div className="text-[11px] text-yellow-200 leading-relaxed">
+              <strong>VITE_PRIVY_APP_ID</strong> غير مضبوط. أضِفه في{' '}
+              <code className="bg-black/40 px-1 rounded">.env.local</code> من{' '}
+              <a href="https://dashboard.privy.io" target="_blank" rel="noreferrer"
+                 className="underline">dashboard.privy.io</a>
+            </div>
+          </div>
+        )}
+
+        {/* ── الخطوة 1: إدخال الإيميل ─────────────────────────────── */}
         {step === 'email' && (
           <div className="space-y-6">
             <div className="text-center">
@@ -123,17 +229,16 @@ export function EmailAuthModal({ isOpen, onClose }: EmailAuthModalProps) {
               </div>
               <h3 className="text-xl font-serif mb-1">سجّل بإيميلك</h3>
               <p className="text-[13px] text-[var(--color-text-dim)] leading-relaxed">
-                لا محفظة؟ لا مشكلة. سنُنشئ لك محفظة Stellar آمنة تلقائياً.
+                لا محفظة؟ سنُنشئ لك محفظة Stellar آمنة عبر Privy.
               </p>
             </div>
 
-            {/* Features */}
             <div className="grid grid-cols-3 gap-2 text-center">
               {[
-                { icon: '🔐', label: 'آمن 100%' },
+                { icon: '🔐', label: 'Privy TEE' },
                 { icon: '⚡', label: 'فوري' },
-                { icon: '🌟', label: 'Stellar Testnet' },
-              ].map(f => (
+                { icon: '🌟', label: 'Stellar' },
+              ].map((f) => (
                 <div key={f.label} className="p-2 bg-white/[0.03] rounded-lg border border-[var(--color-border)]">
                   <div className="text-lg mb-0.5">{f.icon}</div>
                   <div className="text-[10px] text-[var(--color-text-dim)]">{f.label}</div>
@@ -145,12 +250,13 @@ export function EmailAuthModal({ isOpen, onClose }: EmailAuthModalProps) {
               <input
                 type="email"
                 value={email}
-                onChange={e => setEmail(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && handleSendOTP()}
+                onChange={(e) => setEmail(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSendCode()}
                 placeholder="name@example.com"
                 className="input-field text-center text-[15px] tracking-wide"
                 autoFocus
                 dir="ltr"
+                disabled={isSending}
               />
 
               {error && (
@@ -158,11 +264,11 @@ export function EmailAuthModal({ isOpen, onClose }: EmailAuthModalProps) {
               )}
 
               <button
-                onClick={handleSendOTP}
-                disabled={loading || !email.trim()}
+                onClick={handleSendCode}
+                disabled={isSending || !email.trim() || !hasAppId}
                 className="btn-primary w-full flex items-center justify-center gap-2 disabled:opacity-40"
               >
-                {loading ? (
+                {isSending ? (
                   <><Loader2 className="w-4 h-4 animate-spin" /> جاري الإرسال...</>
                 ) : (
                   <><Mail className="w-4 h-4" /> إرسال رمز التحقق</>
@@ -185,7 +291,7 @@ export function EmailAuthModal({ isOpen, onClose }: EmailAuthModalProps) {
           </div>
         )}
 
-        {/* ── Step: OTP ───────────────────────────────────────── */}
+        {/* ── الخطوة 2: OTP ───────────────────────────────────────── */}
         {step === 'otp' && (
           <div className="space-y-6">
             <div className="text-center">
@@ -194,40 +300,36 @@ export function EmailAuthModal({ isOpen, onClose }: EmailAuthModalProps) {
               </div>
               <h3 className="text-xl font-serif mb-1">أدخل رمز التحقق</h3>
               <p className="text-[13px] text-[var(--color-text-dim)]">
-                أُرسل رمز من 6 أرقام إلى
+                أُرسل رمز من {otpLength} أرقام إلى
               </p>
               <p className="text-[13px] font-mono text-primary mt-0.5" dir="ltr">{email}</p>
-              <p className="text-[11px] text-[var(--color-text-muted)] mt-2">
-                🔍 تحقق من <strong>console</strong> للرمز التجريبي
-              </p>
             </div>
 
-            {/* OTP Inputs */}
             <div className="flex gap-2 justify-center" dir="ltr">
-              {otp.map((digit, i) => (
+              {Array(otpLength).fill(0).map((_, i) => (
                 <input
                   key={i}
-                  ref={el => { otpRefs.current[i] = el; }}
+                  ref={(el) => { otpRefs.current[i] = el; }}
                   type="text"
                   inputMode="numeric"
                   maxLength={1}
-                  value={digit}
-                  onChange={e => handleOTPInput(i, e.target.value)}
-                  onKeyDown={e => handleOTPKeyDown(i, e)}
+                  value={otp[i] || ''}
+                  onChange={(e) => handleOTPInput(i, e.target.value)}
+                  onKeyDown={(e) => handleOTPKeyDown(i, e)}
                   className={`w-11 h-13 text-center text-[20px] font-mono font-bold rounded-lg border bg-[var(--color-bg-base)] outline-none transition-all
-                    ${digit ? 'border-primary text-primary' : 'border-[var(--color-border)] text-white'}
+                    ${otp[i] ? 'border-primary text-primary' : 'border-[var(--color-border)] text-white'}
                     focus:border-primary focus:ring-1 focus:ring-primary/30
                   `}
                   style={{ height: '52px' }}
-                  disabled={loading}
+                  disabled={isSubmitting}
                 />
               ))}
             </div>
 
-            {loading && (
+            {isSubmitting && (
               <div className="flex items-center justify-center gap-2 text-[13px] text-[var(--color-text-dim)]">
                 <Loader2 className="w-4 h-4 animate-spin text-primary" />
-                جاري إنشاء محفظتك...
+                جاري التحقق...
               </div>
             )}
 
@@ -237,25 +339,25 @@ export function EmailAuthModal({ isOpen, onClose }: EmailAuthModalProps) {
 
             <div className="flex gap-2">
               <button
-                onClick={() => { setStep('email'); setOtp(['', '', '', '', '', '']); setLocalError(null); }}
+                onClick={() => { setStep('email'); setOtp(Array(otpLength).fill('')); setError(null); }}
                 className="btn-outline flex-1 text-[12px]"
-                disabled={loading}
+                disabled={isSubmitting}
               >
                 رجوع
               </button>
               <button
                 onClick={() => handleVerifyOTP()}
-                disabled={loading || otp.some(d => !d)}
+                disabled={isSubmitting || otp.slice(0, otpLength).some((d) => !d)}
                 className="btn-primary flex-1 flex items-center justify-center gap-2 disabled:opacity-40"
               >
-                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Shield className="w-4 h-4" />}
+                {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Shield className="w-4 h-4" />}
                 تحقق
               </button>
             </div>
 
             <button
-              onClick={handleSendOTP}
-              disabled={loading}
+              onClick={handleSendCode}
+              disabled={isSending}
               className="w-full text-[11px] text-[var(--color-text-muted)] hover:text-primary transition-colors cursor-pointer"
             >
               إعادة إرسال الرمز
@@ -263,7 +365,25 @@ export function EmailAuthModal({ isOpen, onClose }: EmailAuthModalProps) {
           </div>
         )}
 
-        {/* ── Step: Success ────────────────────────────────────── */}
+        {/* ── الخطوة 3: إنشاء المحفظة ─────────────────────────────── */}
+        {step === 'creating-wallet' && (
+          <div className="text-center space-y-5 py-4">
+            <div className="w-16 h-16 mx-auto rounded-full bg-primary/10 border border-primary/30 flex items-center justify-center">
+              <Loader2 className="w-7 h-7 text-primary animate-spin" />
+            </div>
+            <div>
+              <h3 className="text-xl font-serif mb-1">جاري إنشاء محفظتك</h3>
+              <p className="text-[13px] text-[var(--color-text-dim)]">
+                Privy تُولّد مفتاح Stellar آمناً في TEE...
+              </p>
+            </div>
+            <div className="text-[11px] font-mono text-[var(--color-text-muted)] uppercase tracking-wider">
+              Ed25519 · Stellar Testnet
+            </div>
+          </div>
+        )}
+
+        {/* ── الخطوة 4: نجاح ─────────────────────────────────────── */}
         {step === 'success' && (
           <div className="text-center space-y-5 py-4">
             <div className="w-16 h-16 mx-auto rounded-full bg-accent/10 border border-accent/30 flex items-center justify-center">
@@ -271,14 +391,16 @@ export function EmailAuthModal({ isOpen, onClose }: EmailAuthModalProps) {
             </div>
             <div>
               <h3 className="text-xl font-serif mb-1">مرحباً! 🎉</h3>
-              <p className="text-[13px] text-[var(--color-text-dim)]">تم إنشاء محفظتك وتمويلها تلقائياً</p>
+              <p className="text-[13px] text-[var(--color-text-dim)]">
+                تم إنشاء محفظتك على Stellar Testnet
+              </p>
             </div>
             <div className="p-3 bg-[var(--color-bg-base)] border border-[var(--color-border)] rounded-lg">
               <div className="text-[10px] font-mono text-[var(--color-text-muted)] uppercase tracking-wider mb-1">
-                عنوان محفظتك على Stellar
+                عنوان محفظتك
               </div>
               <div className="text-[11px] font-mono text-accent break-all" dir="ltr">
-                {user?.wallet?.address}
+                {stellarAddress}
               </div>
             </div>
             <div className="flex items-center justify-center gap-1.5 text-[11px] text-[var(--color-text-dim)]">
