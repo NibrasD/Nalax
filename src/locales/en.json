@@ -336,6 +336,30 @@
     "link_copied_title": "Link Copied",
     "nft_minted_title": "Content NFT Minted!",
     "publish_failed_title": "Publish Failed",
-    "publish_failed_default": "Transaction was rejected or timed out."
+    "publish_failed_default": "Transaction was rejected or timed out.",
+    "ilp_tip_sent_title": "Sent via ILP!",
+    "ilp_tip_sent_msg": "{{source}} {{sourceCurrency}} → {{dest}} XLM via InterLedger",
+    "ilp_tip_failed": "ILP transfer failed"
+  },
+  "ilp": {
+    "streaming_active": "Streaming Payment Active",
+    "streaming_paused": "Paused",
+    "streaming_inactive": "Inactive",
+    "protocol": "InterLedger Protocol",
+    "session_total": "Session Total",
+    "rate_label": "Rate",
+    "recipient_label": "Recipient",
+    "simulation_notice": "Simulation mode — Install Web Monetization extension for real payments",
+    "streaming_info": "Micropayments are automatically streamed while you read via InterLedger Protocol.",
+    "cross_chain_title": "Cross-chain Tips",
+    "send_from_any": "Send from any currency via InterLedger",
+    "converting_via_ilp": "Converting via InterLedger",
+    "author_receives": "Author receives",
+    "exchange_rate": "Exchange rate",
+    "ilp_fee": "ILP fee",
+    "sending_via_ilp": "Converting via ILP...",
+    "powered_by": "Powered by InterLedger Protocol",
+    "custom_amount": "Custom amount",
+    "payment_pointer": "Payment Pointer"
   }
 }

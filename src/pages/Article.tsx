@@ -2,6 +2,7 @@ import { useParams } from 'react-router-dom';
 import { useAppStore, Article as ArticleType } from '../store/useAppStore';
 import { useWallet } from '../store/useWallet';
 import { useToast } from '../store/useToast';
+import { useILP } from '../store/useILP';
 import { formatAddress, addressGradient, readingTime } from '../lib/utils';
 import { formatDistanceToNow } from 'date-fns';
 import Markdown from 'react-markdown';
@@ -12,6 +13,8 @@ import { purchaseAccess, tipAuthor, fetchContentById, checkAccess } from '../lib
 import { xlmToStroops } from '../lib/contract';
 import { fetchIPFSContent } from '../lib/ipfs';
 import { useTranslation } from 'react-i18next';
+import { generatePaymentPointer } from '../lib/ilp';
+import { WebMonetizationMiniApp } from '../components/miniapps/WebMonetizationMiniApp';
 
 const TIP_PRESETS = [1, 5, 10, 25];
 
@@ -296,6 +299,13 @@ export function Article() {
 
           {/* Sidebar */}
           <aside className="space-y-6 lg:sticky lg:top-28 lg:self-start">
+            {/* Web Monetization — Streaming Micropayments */}
+            <WebMonetizationMiniApp
+              authorPaymentPointer={generatePaymentPointer(article.authorPublicKey)}
+              authorName={article.authorName || formatAddress(article.authorPublicKey)}
+              articleTitle={article.title}
+            />
+
             {/* Tip Card */}
             <div className="glass-panel p-5">
               <h4 className="text-[10px] font-mono uppercase tracking-[2px] text-[var(--color-text-dim)] mb-4 flex items-center justify-between">

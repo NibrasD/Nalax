@@ -336,6 +336,30 @@
     "link_copied_title": "تم نسخ الرابط",
     "nft_minted_title": "تم سك NFT المحتوى!",
     "publish_failed_title": "فشل النشر",
-    "publish_failed_default": "تم رفض المعاملة أو انتهت المهلة."
+    "publish_failed_default": "تم رفض المعاملة أو انتهت المهلة.",
+    "ilp_tip_sent_title": "تم الإرسال عبر ILP!",
+    "ilp_tip_sent_msg": "{{source}} {{sourceCurrency}} → {{dest}} XLM عبر InterLedger",
+    "ilp_tip_failed": "فشل التحويل عبر ILP"
+  },
+  "ilp": {
+    "streaming_active": "جاري الدفع المتدفق",
+    "streaming_paused": "متوقف مؤقتاً",
+    "streaming_inactive": "غير نشط",
+    "protocol": "بروتوكول InterLedger",
+    "session_total": "إجمالي الجلسة",
+    "rate_label": "المعدل",
+    "recipient_label": "المستلم",
+    "simulation_notice": "وضع المحاكاة — ثبّت إضافة Web Monetization لتفعيل الدفع الحقيقي",
+    "streaming_info": "تُرسل مدفوعات صغيرة تلقائياً أثناء قراءتك عبر بروتوكول InterLedger.",
+    "cross_chain_title": "إكراميات عابرة للسلاسل",
+    "send_from_any": "أرسل من أي عملة عبر InterLedger",
+    "converting_via_ilp": "تحويل عبر InterLedger",
+    "author_receives": "سيستلم الكاتب",
+    "exchange_rate": "سعر الصرف",
+    "ilp_fee": "رسوم ILP",
+    "sending_via_ilp": "جاري التحويل عبر ILP...",
+    "powered_by": "مدعوم من بروتوكول InterLedger",
+    "custom_amount": "مبلغ مخصص",
+    "payment_pointer": "عنوان الدفع"
   }
 }
