@@ -2,7 +2,6 @@ import { useParams } from 'react-router-dom';
 import { useAppStore, Article as ArticleType } from '../store/useAppStore';
 import { useWallet } from '../store/useWallet';
 import { useToast } from '../store/useToast';
-import { useILP } from '../store/useILP';
 import { formatAddress, addressGradient, readingTime } from '../lib/utils';
 import { formatDistanceToNow } from 'date-fns';
 import Markdown from 'react-markdown';
@@ -15,8 +14,7 @@ import { fetchIPFSContent } from '../lib/ipfs';
 import { useTranslation } from 'react-i18next';
 import { generatePaymentPointer } from '../lib/ilp';
 import { WebMonetizationMiniApp } from '../components/miniapps/WebMonetizationMiniApp';
-
-const TIP_PRESETS = [1, 5, 10, 25];
+import { TipJarMiniApp } from '../components/miniapps/TipJarMiniApp';
 
 export function Article() {
   const { t } = useTranslation();
@@ -306,49 +304,11 @@ export function Article() {
               articleTitle={article.title}
             />
 
-            {/* Tip Card */}
-            <div className="glass-panel p-5">
-              <h4 className="text-[10px] font-mono uppercase tracking-[2px] text-[var(--color-text-dim)] mb-4 flex items-center justify-between">
-                {t('article.sidebar.support_title')}
-                <Coins className="w-4 h-4 text-primary" />
-              </h4>
-              
-              <div className="grid grid-cols-4 gap-2 mb-3">
-                {TIP_PRESETS.map(amount => (
-                  <button
-                    key={amount}
-                    onClick={() => setTipAmount(amount.toString())}
-                    className={`py-2 text-[12px] font-mono cursor-pointer transition-all rounded-sm ${
-                      tipAmount === amount.toString()
-                        ? 'bg-primary text-white border border-primary'
-                        : 'bg-[var(--color-bg-base)] border border-[var(--color-border)] text-[var(--color-text-dim)] hover:text-white hover:border-[var(--color-border-bright)]'
-                    }`}
-                  >
-                    {amount}
-                  </button>
-                ))}
-              </div>
-              
-              <div className="flex gap-2">
-                <input 
-                  type="number" 
-                  value={tipAmount}
-                  onChange={(e) => setTipAmount(e.target.value)}
-                  placeholder="XLM"
-                  className="input-field !py-2 flex-1"
-                />
-                <button 
-                  onClick={() => handleTransaction('tip')}
-                  disabled={isTransacting || !tipAmount || Number(tipAmount) <= 0}
-                  className="btn-primary !py-2 !px-4 disabled:opacity-30 disabled:cursor-not-allowed whitespace-nowrap"
-                >
-                  {isTransacting ? '...' : t('article.sidebar.tip_btn')}
-                </button>
-              </div>
-              <p className="text-[10px] text-[var(--color-text-dim)] mt-2 leading-relaxed">
-                {t('article.sidebar.tip_hint')}
-              </p>
-            </div>
+            {/* Cross-chain Tip Jar via InterLedger */}
+            <TipJarMiniApp
+              recipientName={article.authorName || formatAddress(article.authorPublicKey)}
+              recipientAddress={article.authorPublicKey}
+            />
 
             {/* On-chain verification */}
             <div className="glass-panel p-5">
