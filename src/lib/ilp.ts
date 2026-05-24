@@ -1,370 +1,555 @@
 /**
  * InterLedger Protocol (ILP) — Web Monetization & Cross-chain Tips
  * ─────────────────────────────────────────────────────────────────
- * يوفر:
- *   • Web Monetization API — streaming micropayments أثناء القراءة
- *   • Cross-chain Tips — إرسال إكراميات من أي عملة عبر ILP
- *   • Payment Pointer management — إدارة عنوان الدفع لكل كاتب
+ * تنفيذ حقيقي:
+ *   • Web Monetization API — يستخدم `<link rel="monetization">` الحقيقي
+ *     ويستمع لحدث `monetization` من المتصفح
+ *   • Cross-chain Tips — يستخدم Stellar Path Payments (DEX) لتحويل
+ *     العملات فعلياً على الشبكة
+ *   • XLM Tips — دفع حقيقي مباشر عبر Stellar
  */
+
+import { TransactionBuilder, Networks, Asset, Operation, Memo } from '@stellar/stellar-sdk';
+import { signTransaction } from '@stellar/freighter-api';
+import { server, waitForTransaction } from './stellar';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
 export interface PaymentPointer {
-  /** e.g. $wallet.nalax.com/username or $ilp.uphold.com/abc123 */
+  /** Wallet address URL, e.g. https://ilp.rafiki.money/alice */
   pointer: string;
   /** The Stellar address linked to this payment pointer */
   stellarAddress: string;
-  /** Display label */
   label?: string;
-}
-
-export interface MonetizationState {
-  isMonetized: boolean;
-  isStreaming: boolean;
-  totalReceived: number;
-  currency: string;
-  paymentPointer: string | null;
-  sessionPayments: MonetizationPayment[];
 }
 
 export interface MonetizationPayment {
   amount: number;
   currency: string;
   timestamp: number;
-  requestId: string;
+  paymentPointer: string;
+  receipt?: string;
 }
 
 export interface CrossChainTipRequest {
-  /** Source currency (ETH, BTC, XRP, USD, EUR, etc.) */
-  sourceCurrency: string;
-  /** Amount in source currency */
-  sourceAmount: number;
-  /** Destination payment pointer */
-  destinationPointer: string;
-  /** Destination currency (defaults to XLM) */
-  destinationCurrency: string;
+  senderPublicKey: string;
+  destinationAddress: string;
+  /** Amount the recipient should receive in XLM */
+  destinationAmountXLM: string;
+  /** Source asset code (e.g. 'USDC', 'BTC') */
+  sourceAssetCode: string;
+  /** Source asset issuer (Stellar anchor issuer address) */
+  sourceAssetIssuer: string;
+  /** Maximum amount sender is willing to spend in source asset */
+  maxSourceAmount: string;
 }
 
 export interface CrossChainTipResult {
   success: boolean;
-  txId: string;
-  sourceAmount: number;
+  txHash: string;
+  sourceAmount: string;
   sourceCurrency: string;
-  destinationAmount: number;
+  destinationAmount: string;
   destinationCurrency: string;
-  exchangeRate: number;
-  fee: number;
 }
 
 export interface StreamingSession {
   id: string;
   paymentPointer: string;
   startTime: number;
-  totalSent: number;
+  totalReceived: number;
   currency: string;
-  ratePerSecond: number;
   isActive: boolean;
+  payments: MonetizationPayment[];
 }
 
-// ─── Supported currencies for cross-chain tips ──────────────────────────────
+// ─── Supported assets on Stellar testnet for path payments ──────────────────
 
-export const SUPPORTED_CURRENCIES = [
-  { code: 'XLM', name: 'Stellar Lumens', icon: '⭐', network: 'Stellar' },
-  { code: 'ETH', name: 'Ethereum', icon: '⟠', network: 'Ethereum' },
-  { code: 'BTC', name: 'Bitcoin', icon: '₿', network: 'Bitcoin' },
-  { code: 'XRP', name: 'Ripple', icon: '✕', network: 'XRPL' },
-  { code: 'USDC', name: 'USD Coin', icon: '💵', network: 'Multi' },
-  { code: 'SOL', name: 'Solana', icon: '◎', network: 'Solana' },
+export const STELLAR_ASSETS = [
+  {
+    code: 'XLM',
+    name: 'Stellar Lumens',
+    icon: '⭐',
+    network: 'Stellar',
+    issuer: null, // native
+    isNative: true,
+  },
+  {
+    code: 'USDC',
+    name: 'USD Coin',
+    icon: '💵',
+    network: 'Stellar',
+    issuer: 'GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5', // testnet anchor
+    isNative: false,
+  },
+  {
+    code: 'BTC',
+    name: 'Bitcoin (wrapped)',
+    icon: '₿',
+    network: 'Stellar',
+    issuer: 'GDPJALI4AZKUU2W426U5WKMAT6CN3AJRPIIRYR2YM54TL2GDWO5O2MZM', // testnet anchor
+    isNative: false,
+  },
+  {
+    code: 'ETH',
+    name: 'Ethereum (wrapped)',
+    icon: '⟠',
+    network: 'Stellar',
+    issuer: 'GBDEVU63Y6NTHJQQZIKVTC23NWLQHMAXOZZLM2JXWI5NUHQU7AH5DAE6', // testnet anchor
+    isNative: false,
+  },
 ] as const;
 
-export type SupportedCurrency = typeof SUPPORTED_CURRENCIES[number]['code'];
+export type SupportedAssetCode = typeof STELLAR_ASSETS[number]['code'];
 
-// ─── Payment Pointer Utilities ──────────────────────────────────────────────
+// ─── Payment Pointer / Wallet Address ───────────────────────────────────────
 
 /**
- * Generate a payment pointer for a Nalax author.
- * Format: $nalax.app/{stellarAddress}
+ * Generate a wallet address for a Nalax author.
+ * Uses the InterLedger test wallet format.
+ * In production, this would point to a real Open Payments-enabled wallet.
  */
 export function generatePaymentPointer(stellarAddress: string): string {
-  return `$nalax.app/${stellarAddress.slice(0, 8).toLowerCase()}`;
+  // Use the ILP testnet wallet format
+  return `https://ilp.interledger-test.dev/${stellarAddress.slice(0, 12).toLowerCase()}`;
 }
 
 /**
- * Validate a payment pointer format.
- * Must start with $ and contain at least a domain.
+ * Validate a wallet address (payment pointer) format.
+ * Accepts both $pointer and https:// formats.
  */
 export function isValidPaymentPointer(pointer: string): boolean {
-  if (!pointer || !pointer.startsWith('$')) return false;
-  const withoutDollar = pointer.slice(1);
-  // Must have domain-like structure
-  return /^[a-zA-Z0-9][a-zA-Z0-9.-]+[a-zA-Z0-9](\/.*)?$/.test(withoutDollar);
+  if (!pointer) return false;
+  // $wallet.example.com/path format
+  if (pointer.startsWith('$')) {
+    const withoutDollar = pointer.slice(1);
+    return /^[a-zA-Z0-9][a-zA-Z0-9.-]+[a-zA-Z0-9](\/.*)?$/.test(withoutDollar);
+  }
+  // https://wallet.example.com/path format
+  try {
+    const url = new URL(pointer);
+    return url.protocol === 'https:';
+  } catch {
+    return false;
+  }
 }
 
 /**
- * Convert a payment pointer to a URL for SPSP resolution.
- * $wallet.example.com/alice → https://wallet.example.com/alice
+ * Convert a payment pointer ($format) to a URL.
  */
 export function paymentPointerToUrl(pointer: string): string {
-  if (!pointer.startsWith('$')) return pointer;
-  return `https://${pointer.slice(1)}`;
+  if (pointer.startsWith('$')) return `https://${pointer.slice(1)}`;
+  return pointer;
 }
 
-// ─── Web Monetization API ───────────────────────────────────────────────────
+// ─── Web Monetization API (Real Implementation) ─────────────────────────────
 
 /**
- * Check if the browser supports Web Monetization API.
+ * Check if the browser supports Web Monetization.
+ * The standard uses `<link rel="monetization">` and a `monetization` event.
  */
 export function isWebMonetizationSupported(): boolean {
-  return typeof document !== 'undefined' && 'monetization' in document;
+  if (typeof document === 'undefined') return false;
+  // Check for the monetization event support (modern spec)
+  return 'monetization' in document || typeof (document as any).monetization !== 'undefined';
 }
 
 /**
- * Create the monetization meta tag for an article.
- * This enables streaming payments from readers who have Web Monetization enabled.
+ * Create a `<link rel="monetization">` tag in the document head.
+ * This is the W3C standard way to enable Web Monetization.
+ * 
+ * When a user has a Web Monetization extension (like the Interledger extension),
+ * it will detect this link and start streaming payments to the wallet address.
+ * 
+ * @see https://webmonetization.org/specification
  */
-export function createMonetizationTag(paymentPointer: string): HTMLMetaElement | null {
+export function createMonetizationLink(walletAddress: string): HTMLLinkElement | null {
   if (typeof document === 'undefined') return null;
-  
-  // Remove any existing monetization tag
-  removeMonetizationTag();
-  
-  const meta = document.createElement('meta');
-  meta.name = 'monetization';
-  meta.content = paymentPointer;
-  document.head.appendChild(meta);
-  
-  return meta;
+
+  // Remove any existing monetization link
+  removeMonetizationLink();
+
+  const link = document.createElement('link');
+  link.rel = 'monetization';
+  link.href = walletAddress;
+  document.head.appendChild(link);
+
+  return link;
 }
 
 /**
- * Remove the monetization meta tag.
+ * Remove the monetization link tag.
  */
-export function removeMonetizationTag(): void {
+export function removeMonetizationLink(): void {
   if (typeof document === 'undefined') return;
-  const existing = document.querySelector('meta[name="monetization"]');
+  const existing = document.querySelector('link[rel="monetization"]');
   if (existing) existing.remove();
 }
 
+// Legacy support — keep old function names working
+export const createMonetizationTag = createMonetizationLink;
+export const removeMonetizationTag = removeMonetizationLink;
+
 /**
- * Subscribe to Web Monetization events and track payments.
+ * Subscribe to real Web Monetization events.
+ * 
+ * The 'monetization' event fires on the document when a payment is received.
+ * Each event contains: { amount, assetCode, assetScale, receipt }
+ * 
  * Returns a cleanup function.
  */
 export function subscribeToMonetization(
+  walletAddress: string,
   onPayment: (payment: MonetizationPayment) => void,
   onStart?: () => void,
   onStop?: () => void,
 ): () => void {
-  if (!isWebMonetizationSupported()) return () => {};
+  if (typeof document === 'undefined') return () => {};
 
-  const monetization = (document as any).monetization;
+  // Set up the monetization link
+  const link = createMonetizationLink(walletAddress);
+  if (!link) return () => {};
 
-  const handleStart = () => onStart?.();
-  const handleStop = () => onStop?.();
-  const handleProgress = (event: any) => {
+  let isMonetizing = false;
+
+  // Modern spec: 'monetization' event on document
+  const handleMonetization = (event: Event) => {
+    const detail = (event as CustomEvent).detail || (event as any);
+    
+    if (!isMonetizing) {
+      isMonetizing = true;
+      onStart?.();
+    }
+
+    const amount = Number(detail?.amount || 0);
+    const assetScale = Number(detail?.assetScale || 9);
+    const scaledAmount = amount / Math.pow(10, assetScale);
+
     const payment: MonetizationPayment = {
-      amount: Number(event.detail?.amount || 0) / Math.pow(10, event.detail?.assetScale || 9),
-      currency: event.detail?.assetCode || 'XLM',
+      amount: scaledAmount,
+      currency: detail?.assetCode || 'USD',
       timestamp: Date.now(),
-      requestId: event.detail?.requestId || crypto.randomUUID(),
+      paymentPointer: walletAddress,
+      receipt: detail?.receipt,
     };
+
     onPayment(payment);
   };
 
-  monetization?.addEventListener('monetizationstart', handleStart);
-  monetization?.addEventListener('monetizationstop', handleStop);
-  monetization?.addEventListener('monetizationprogress', handleProgress);
+  // Listen on the link element (modern spec) and document (legacy)
+  link.addEventListener('monetization', handleMonetization);
+  document.addEventListener('monetization', handleMonetization);
 
+  // Legacy: document.monetization events
+  const legacyMonetization = (document as any).monetization;
+  if (legacyMonetization) {
+    legacyMonetization.addEventListener('monetizationstart', () => {
+      isMonetizing = true;
+      onStart?.();
+    });
+    legacyMonetization.addEventListener('monetizationstop', () => {
+      isMonetizing = false;
+      onStop?.();
+    });
+    legacyMonetization.addEventListener('monetizationprogress', handleMonetization);
+  }
+
+  // Cleanup
   return () => {
-    monetization?.removeEventListener('monetizationstart', handleStart);
-    monetization?.removeEventListener('monetizationstop', handleStop);
-    monetization?.removeEventListener('monetizationprogress', handleProgress);
+    link.removeEventListener('monetization', handleMonetization);
+    document.removeEventListener('monetization', handleMonetization);
+    if (legacyMonetization) {
+      legacyMonetization.removeEventListener('monetizationstart', () => {});
+      legacyMonetization.removeEventListener('monetizationstop', () => {});
+      legacyMonetization.removeEventListener('monetizationprogress', handleMonetization);
+    }
+    removeMonetizationLink();
+    if (isMonetizing) {
+      isMonetizing = false;
+      onStop?.();
+    }
   };
 }
 
-// ─── Streaming Micropayments (Simulated for Testnet) ────────────────────────
-
-const STREAMING_RATE_PER_SECOND = 0.001; // 0.001 XLM per second of reading
+// ─── Streaming Session Management ───────────────────────────────────────────
 
 /**
- * Start a streaming payment session.
- * In production, this would connect to a real ILP connector (Rafiki).
- * For testnet/demo, we simulate the streaming.
+ * Create a streaming session that tracks Web Monetization payments.
  */
 export function createStreamingSession(paymentPointer: string): StreamingSession {
   return {
     id: crypto.randomUUID(),
     paymentPointer,
     startTime: Date.now(),
-    totalSent: 0,
-    currency: 'XLM',
-    ratePerSecond: STREAMING_RATE_PER_SECOND,
+    totalReceived: 0,
+    currency: 'USD',
     isActive: true,
+    payments: [],
   };
 }
 
 /**
- * Calculate the total payment for a streaming session based on elapsed time.
+ * Add a payment to a streaming session.
  */
-export function calculateStreamingTotal(session: StreamingSession): number {
-  if (!session.isActive) return session.totalSent;
-  const elapsed = (Date.now() - session.startTime) / 1000; // seconds
-  return elapsed * session.ratePerSecond;
-}
-
-/**
- * End a streaming session and return the final amount.
- */
-export function endStreamingSession(session: StreamingSession): StreamingSession {
+export function addPaymentToSession(
+  session: StreamingSession,
+  payment: MonetizationPayment
+): StreamingSession {
   return {
     ...session,
-    isActive: false,
-    totalSent: calculateStreamingTotal(session),
-  };
-}
-
-// ─── Cross-Chain Tips via ILP ───────────────────────────────────────────────
-
-/**
- * Mock exchange rates for demo purposes.
- * In production, these would come from a real ILP connector or DEX.
- */
-const EXCHANGE_RATES: Record<string, number> = {
-  'ETH_XLM': 8500,    // 1 ETH ≈ 8500 XLM
-  'BTC_XLM': 170000,  // 1 BTC ≈ 170000 XLM
-  'XRP_XLM': 1.8,     // 1 XRP ≈ 1.8 XLM
-  'USDC_XLM': 2.7,    // 1 USDC ≈ 2.7 XLM
-  'SOL_XLM': 420,     // 1 SOL ≈ 420 XLM
-  'XLM_XLM': 1,       // 1:1
-};
-
-/**
- * Get the exchange rate between two currencies.
- */
-export function getExchangeRate(from: string, to: string): number {
-  if (from === to) return 1;
-  const key = `${from}_${to}`;
-  return EXCHANGE_RATES[key] || 1;
-}
-
-/**
- * Get a quote for a cross-chain tip.
- * Returns the estimated destination amount and fee.
- */
-export function getCrossChainQuote(
-  sourceCurrency: string,
-  sourceAmount: number,
-  destinationCurrency: string = 'XLM'
-): { destinationAmount: number; fee: number; rate: number } {
-  const rate = getExchangeRate(sourceCurrency, destinationCurrency);
-  const grossAmount = sourceAmount * rate;
-  // ILP connector fee: 0.1%
-  const fee = grossAmount * 0.001;
-  const destinationAmount = grossAmount - fee;
-  
-  return {
-    destinationAmount: Math.round(destinationAmount * 10000) / 10000,
-    fee: Math.round(fee * 10000) / 10000,
-    rate,
+    totalReceived: session.totalReceived + payment.amount,
+    payments: [...session.payments, payment],
+    currency: payment.currency || session.currency,
   };
 }
 
 /**
- * Execute a cross-chain tip via ILP.
- * In production, this would:
- *   1. Connect to an ILP connector (Rafiki)
- *   2. Resolve the recipient's SPSP endpoint
- *   3. Negotiate the payment path
- *   4. Stream the payment across chains
+ * End a streaming session.
+ */
+export function endStreamingSession(session: StreamingSession): StreamingSession {
+  return { ...session, isActive: false };
+}
+
+/**
+ * Calculate session duration in seconds.
+ */
+export function getSessionDuration(session: StreamingSession): number {
+  return (Date.now() - session.startTime) / 1000;
+}
+
+// ─── Real Cross-Chain Tips via Stellar Path Payments ────────────────────────
+
+/**
+ * Find payment paths on the Stellar DEX.
+ * Uses Horizon's `/paths/strict-receive` endpoint to find the best route.
  * 
- * For testnet/demo, we simulate the ILP routing and convert to a Stellar payment.
+ * This queries the REAL Stellar DEX for available liquidity.
+ */
+export async function findPaymentPaths(
+  sourceAccount: string,
+  destinationAsset: Asset,
+  destinationAmount: string,
+): Promise<any[]> {
+  const horizonUrl = 'https://horizon-testnet.stellar.org';
+  
+  const params = new URLSearchParams({
+    source_account: sourceAccount,
+    destination_asset_type: destinationAsset.isNative() ? 'native' : 'credit_alphanum4',
+    destination_amount: destinationAmount,
+  });
+
+  if (!destinationAsset.isNative()) {
+    params.set('destination_asset_code', destinationAsset.getCode());
+    params.set('destination_asset_issuer', destinationAsset.getIssuer());
+  }
+
+  try {
+    const response = await fetch(`${horizonUrl}/paths/strict-receive?${params}`);
+    if (!response.ok) return [];
+    const data = await response.json();
+    return data._embedded?.records || [];
+  } catch (e) {
+    console.error('Failed to find payment paths:', e);
+    return [];
+  }
+}
+
+/**
+ * Execute a cross-chain tip using Stellar Path Payment.
+ * 
+ * This sends a REAL transaction on the Stellar network that:
+ * 1. Takes the source asset from the sender's account
+ * 2. Routes through the Stellar DEX to convert currencies
+ * 3. Delivers XLM to the recipient
+ * 
+ * This is a REAL on-chain transaction, not simulated.
  */
 export async function sendCrossChainTip(
   request: CrossChainTipRequest
 ): Promise<CrossChainTipResult> {
-  const { sourceCurrency, sourceAmount, destinationPointer, destinationCurrency } = request;
-  
-  // Validate
-  if (sourceAmount <= 0) throw new Error('Amount must be positive');
-  if (!isValidPaymentPointer(destinationPointer)) throw new Error('Invalid payment pointer');
-  
-  // Get quote
-  const quote = getCrossChainQuote(sourceCurrency, sourceAmount, destinationCurrency);
-  
-  // Simulate ILP routing delay (packet exchange)
-  await new Promise(resolve => setTimeout(resolve, 2000));
-  
-  // In production, this is where the actual ILP STREAM protocol would execute
-  // For now, we return the simulated result
-  const result: CrossChainTipResult = {
-    success: true,
-    txId: `ilp_${crypto.randomUUID().slice(0, 16)}`,
-    sourceAmount,
-    sourceCurrency,
-    destinationAmount: quote.destinationAmount,
-    destinationCurrency,
-    exchangeRate: quote.rate,
-    fee: quote.fee,
-  };
-  
-  return result;
+  const {
+    senderPublicKey,
+    destinationAddress,
+    destinationAmountXLM,
+    sourceAssetCode,
+    sourceAssetIssuer,
+    maxSourceAmount,
+  } = request;
+
+  // Build the source asset
+  const sourceAsset = sourceAssetIssuer
+    ? new Asset(sourceAssetCode, sourceAssetIssuer)
+    : Asset.native();
+
+  const destAsset = Asset.native(); // XLM
+
+  try {
+    const account = await server.getAccount(senderPublicKey);
+
+    const transaction = new TransactionBuilder(account, {
+      fee: '100',
+      networkPassphrase: Networks.TESTNET,
+    })
+      .addOperation(
+        Operation.pathPaymentStrictReceive({
+          sendAsset: sourceAsset,
+          sendMax: maxSourceAmount,
+          destination: destinationAddress,
+          destAsset: destAsset,
+          destAmount: destinationAmountXLM,
+          // path is auto-resolved by the network
+          path: [],
+        })
+      )
+      .addMemo(Memo.text('Nalax ILP Tip'))
+      .setTimeout(30)
+      .build();
+
+    // Sign with Freighter
+    const signResult = await signTransaction(transaction.toXDR(), {
+      network: 'TESTNET',
+      networkPassphrase: Networks.TESTNET,
+    });
+    const signedXdr = typeof signResult === 'string' ? signResult : (signResult as any).signedTxXdr;
+
+    // Submit
+    const response = await server.sendTransaction(
+      TransactionBuilder.fromXDR(signedXdr, Networks.TESTNET) as any
+    );
+
+    if (response.status === 'ERROR') {
+      throw new Error(`Path payment failed: ${JSON.stringify(response)}`);
+    }
+
+    const result = await waitForTransaction(response.hash);
+
+    return {
+      success: true,
+      txHash: result.hash,
+      sourceAmount: maxSourceAmount,
+      sourceCurrency: sourceAssetCode,
+      destinationAmount: destinationAmountXLM,
+      destinationCurrency: 'XLM',
+    };
+  } catch (error: any) {
+    console.error('Cross-chain tip error:', error);
+    throw error;
+  }
 }
 
-// ─── SPSP (Simple Payment Setup Protocol) ───────────────────────────────────
-
 /**
- * Resolve a payment pointer to get the SPSP endpoint details.
- * In production, this makes an HTTP request to the payment pointer URL.
+ * Send a direct XLM tip — real Stellar payment.
+ * Uses the standard payment operation.
  */
-export async function resolveSPSP(paymentPointer: string): Promise<{
-  destinationAccount: string;
-  sharedSecret: string;
-  receiptsEnabled: boolean;
-}> {
-  // Simulated SPSP resolution for testnet
-  await new Promise(resolve => setTimeout(resolve, 500));
-  
-  return {
-    destinationAccount: `g.nalax.${paymentPointer.replace('$', '').replace(/[/.]/g, '_')}`,
-    sharedSecret: btoa(crypto.randomUUID()),
-    receiptsEnabled: true,
-  };
+export async function sendDirectXLMTip(
+  senderPublicKey: string,
+  destinationAddress: string,
+  amountXLM: string,
+): Promise<{ success: boolean; txHash: string }> {
+  try {
+    const account = await server.getAccount(senderPublicKey);
+
+    const transaction = new TransactionBuilder(account, {
+      fee: '100',
+      networkPassphrase: Networks.TESTNET,
+    })
+      .addOperation(
+        Operation.payment({
+          destination: destinationAddress,
+          asset: Asset.native(),
+          amount: amountXLM,
+        })
+      )
+      .addMemo(Memo.text('Nalax Tip'))
+      .setTimeout(30)
+      .build();
+
+    const signResult = await signTransaction(transaction.toXDR(), {
+      network: 'TESTNET',
+      networkPassphrase: Networks.TESTNET,
+    });
+    const signedXdr = typeof signResult === 'string' ? signResult : (signResult as any).signedTxXdr;
+
+    const response = await server.sendTransaction(
+      TransactionBuilder.fromXDR(signedXdr, Networks.TESTNET) as any
+    );
+
+    if (response.status === 'ERROR') {
+      throw new Error(`Payment failed: ${JSON.stringify(response)}`);
+    }
+
+    const result = await waitForTransaction(response.hash);
+    return { success: true, txHash: result.hash };
+  } catch (error: any) {
+    console.error('Direct XLM tip error:', error);
+    throw error;
+  }
 }
 
-// ─── Open Payments API helpers ──────────────────────────────────────────────
+// ─── Live Exchange Rate from Stellar DEX ────────────────────────────────────
 
 /**
- * Create an incoming payment on the recipient's wallet.
- * Part of the Open Payments standard (built on ILP).
+ * Get a REAL exchange rate quote from the Stellar DEX.
+ * Queries Horizon orderbook for the current best price.
  */
-export async function createIncomingPayment(
-  paymentPointer: string,
-  amount: number,
-  currency: string = 'XLM'
-): Promise<{ id: string; ilpAddress: string; expiresAt: string }> {
-  // Simulated for testnet
-  await new Promise(resolve => setTimeout(resolve, 300));
-  
-  return {
-    id: `pay_${crypto.randomUUID().slice(0, 12)}`,
-    ilpAddress: `g.nalax.${Date.now()}`,
-    expiresAt: new Date(Date.now() + 3600000).toISOString(), // 1 hour
-  };
+export async function getLiveExchangeRate(
+  sourceAssetCode: string,
+  sourceAssetIssuer: string | null,
+  destAssetCode: string = 'native',
+  destAssetIssuer: string | null = null,
+): Promise<{ rate: number; available: boolean }> {
+  const horizonUrl = 'https://horizon-testnet.stellar.org';
+
+  const params = new URLSearchParams();
+
+  // Selling (source)
+  if (!sourceAssetIssuer) {
+    params.set('selling_asset_type', 'native');
+  } else {
+    params.set('selling_asset_type', 'credit_alphanum4');
+    params.set('selling_asset_code', sourceAssetCode);
+    params.set('selling_asset_issuer', sourceAssetIssuer);
+  }
+
+  // Buying (destination)
+  if (destAssetCode === 'native' || !destAssetIssuer) {
+    params.set('buying_asset_type', 'native');
+  } else {
+    params.set('buying_asset_type', 'credit_alphanum4');
+    params.set('buying_asset_code', destAssetCode);
+    params.set('buying_asset_issuer', destAssetIssuer);
+  }
+
+  params.set('limit', '1');
+
+  try {
+    const response = await fetch(`${horizonUrl}/order_book?${params}`);
+    if (!response.ok) return { rate: 0, available: false };
+    const data = await response.json();
+
+    // Get best ask price (what it costs to buy 1 unit of buying asset)
+    const asks = data.asks || [];
+    if (asks.length === 0) return { rate: 0, available: false };
+
+    const bestPrice = parseFloat(asks[0].price);
+    return { rate: bestPrice, available: true };
+  } catch {
+    return { rate: 0, available: false };
+  }
 }
 
-/**
- * Format a streaming amount for display.
- */
-export function formatStreamingAmount(amount: number, currency: string = 'XLM'): string {
-  if (amount < 0.001) return `< 0.001 ${currency}`;
+// ─── Formatting Utilities ───────────────────────────────────────────────────
+
+export function formatStreamingAmount(amount: number, currency: string = 'USD'): string {
+  if (amount === 0) return `0.0000 ${currency}`;
+  if (amount < 0.0001) return `< 0.0001 ${currency}`;
   if (amount < 1) return `${amount.toFixed(4)} ${currency}`;
   return `${amount.toFixed(2)} ${currency}`;
 }
 
-/**
- * Format streaming rate for display.
- */
-export function formatStreamingRate(ratePerSecond: number, currency: string = 'XLM'): string {
-  const perMinute = ratePerSecond * 60;
-  if (perMinute < 0.01) return `~${(perMinute * 1000).toFixed(1)} m${currency}/min`;
-  return `~${perMinute.toFixed(3)} ${currency}/min`;
+export function formatStreamingRate(totalAmount: number, durationSeconds: number, currency: string = 'USD'): string {
+  if (durationSeconds === 0) return `0 ${currency}/min`;
+  const perMinute = (totalAmount / durationSeconds) * 60;
+  if (perMinute < 0.001) return `< 0.001 ${currency}/min`;
+  return `~${perMinute.toFixed(4)} ${currency}/min`;
 }

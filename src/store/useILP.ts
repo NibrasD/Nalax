@@ -2,10 +2,9 @@
  * useILP — InterLedger Protocol State Store
  * ──────────────────────────────────────────
  * يدير:
- *   • حالة Web Monetization (streaming)
+ *   • حالة Web Monetization (real streaming payments)
+ *   • سجل المدفوعات المستلَمة
  *   • Payment Pointer لكل كاتب
- *   • سجل المدفوعات عبر ILP
- *   • جلسات الدفع المتدفق
  */
 
 import { create } from 'zustand';
@@ -13,49 +12,33 @@ import { persist } from 'zustand/middleware';
 import {
   MonetizationPayment,
   StreamingSession,
-  CrossChainTipResult,
-  generatePaymentPointer,
   createStreamingSession,
-  calculateStreamingTotal,
+  addPaymentToSession,
   endStreamingSession,
 } from '../lib/ilp';
 
 interface ILPState {
   // Payment Pointer
   paymentPointer: string | null;
-  customPaymentPointer: string | null;
-  
-  // Web Monetization State
-  isMonetizationActive: boolean;
+
+  // Web Monetization
   isStreaming: boolean;
-  totalEarnedFromStreaming: number;
-  sessionPayments: MonetizationPayment[];
-  
-  // Streaming Session
   currentSession: StreamingSession | null;
-  
-  // Cross-chain Tips History
-  crossChainTips: CrossChainTipResult[];
-  totalCrossChainReceived: number;
-  
-  // Stats
+  totalEarnedFromStreaming: number;
+
+  // History
   totalStreamingSessions: number;
-  lifetimeStreamingEarnings: number;
-  
+  lifetimeEarnings: number;
+  recentPayments: MonetizationPayment[];
+
   // Actions
   setPaymentPointer: (pointer: string) => void;
-  generatePointerFromAddress: (stellarAddress: string) => void;
-  
-  startMonetization: (paymentPointer: string) => void;
-  stopMonetization: () => void;
-  addPayment: (payment: MonetizationPayment) => void;
-  
+
   startStreamingSession: (paymentPointer: string) => void;
-  updateStreamingTotal: () => void;
+  addPayment: (payment: MonetizationPayment) => void;
   endCurrentSession: () => void;
-  
-  addCrossChainTip: (tip: CrossChainTipResult) => void;
-  
+  updateStreamingTotal: () => void;
+
   resetSession: () => void;
 }
 
@@ -64,90 +47,53 @@ export const useILP = create<ILPState>()(
     (set, get) => ({
       // Initial State
       paymentPointer: null,
-      customPaymentPointer: null,
-      isMonetizationActive: false,
       isStreaming: false,
-      totalEarnedFromStreaming: 0,
-      sessionPayments: [],
       currentSession: null,
-      crossChainTips: [],
-      totalCrossChainReceived: 0,
+      totalEarnedFromStreaming: 0,
       totalStreamingSessions: 0,
-      lifetimeStreamingEarnings: 0,
+      lifetimeEarnings: 0,
+      recentPayments: [],
 
-      // ── Payment Pointer Actions ──
-      setPaymentPointer: (pointer) => set({ 
-        paymentPointer: pointer, 
-        customPaymentPointer: pointer 
-      }),
-      
-      generatePointerFromAddress: (stellarAddress) => {
-        const pointer = generatePaymentPointer(stellarAddress);
-        set({ paymentPointer: pointer });
-      },
+      // ── Actions ──
+      setPaymentPointer: (pointer) => set({ paymentPointer: pointer }),
 
-      // ── Web Monetization Actions ──
-      startMonetization: (paymentPointer) => set({
-        isMonetizationActive: true,
-        isStreaming: true,
-        paymentPointer,
-        sessionPayments: [],
-        totalEarnedFromStreaming: 0,
-      }),
-      
-      stopMonetization: () => {
-        const { totalEarnedFromStreaming, lifetimeStreamingEarnings, totalStreamingSessions } = get();
-        set({
-          isStreaming: false,
-          lifetimeStreamingEarnings: lifetimeStreamingEarnings + totalEarnedFromStreaming,
-          totalStreamingSessions: totalStreamingSessions + 1,
-        });
-      },
-      
-      addPayment: (payment) => set((state) => ({
-        sessionPayments: [...state.sessionPayments, payment],
-        totalEarnedFromStreaming: state.totalEarnedFromStreaming + payment.amount,
-      })),
-
-      // ── Streaming Session Actions ──
       startStreamingSession: (paymentPointer) => {
         const session = createStreamingSession(paymentPointer);
-        set({ currentSession: session, isStreaming: true });
+        set({ currentSession: session, isStreaming: true, totalEarnedFromStreaming: 0 });
       },
-      
-      updateStreamingTotal: () => {
-        const { currentSession } = get();
-        if (!currentSession || !currentSession.isActive) return;
-        const total = calculateStreamingTotal(currentSession);
-        set({ 
-          totalEarnedFromStreaming: total,
-          currentSession: { ...currentSession, totalSent: total },
+
+      addPayment: (payment) => {
+        const { currentSession, recentPayments } = get();
+        if (!currentSession) return;
+
+        const updated = addPaymentToSession(currentSession, payment);
+        set({
+          currentSession: updated,
+          totalEarnedFromStreaming: updated.totalReceived,
+          recentPayments: [payment, ...recentPayments].slice(0, 100),
         });
       },
-      
+
+      updateStreamingTotal: () => {
+        // No-op for real implementation (totals update via addPayment)
+      },
+
       endCurrentSession: () => {
-        const { currentSession, lifetimeStreamingEarnings, totalStreamingSessions } = get();
+        const { currentSession, lifetimeEarnings, totalStreamingSessions } = get();
         if (!currentSession) return;
+
         const finalSession = endStreamingSession(currentSession);
         set({
           currentSession: null,
           isStreaming: false,
-          lifetimeStreamingEarnings: lifetimeStreamingEarnings + finalSession.totalSent,
+          lifetimeEarnings: lifetimeEarnings + finalSession.totalReceived,
           totalStreamingSessions: totalStreamingSessions + 1,
         });
       },
 
-      // ── Cross-chain Tips ──
-      addCrossChainTip: (tip) => set((state) => ({
-        crossChainTips: [tip, ...state.crossChainTips].slice(0, 50), // keep last 50
-        totalCrossChainReceived: state.totalCrossChainReceived + tip.destinationAmount,
-      })),
-
-      // ── Reset ──
       resetSession: () => set({
         isStreaming: false,
         totalEarnedFromStreaming: 0,
-        sessionPayments: [],
         currentSession: null,
       }),
     }),
@@ -155,11 +101,8 @@ export const useILP = create<ILPState>()(
       name: 'nalax-ilp-storage',
       partialize: (state) => ({
         paymentPointer: state.paymentPointer,
-        customPaymentPointer: state.customPaymentPointer,
-        crossChainTips: state.crossChainTips,
-        totalCrossChainReceived: state.totalCrossChainReceived,
         totalStreamingSessions: state.totalStreamingSessions,
-        lifetimeStreamingEarnings: state.lifetimeStreamingEarnings,
+        lifetimeEarnings: state.lifetimeEarnings,
       }),
     }
   )
