@@ -538,6 +538,141 @@ export async function getLiveExchangeRate(
   }
 }
 
+// ─── ILP Backend Client (Open Payments API) ─────────────────────────────────
+
+const ILP_SERVER_URL = import.meta.env.VITE_ILP_SERVER_URL || 'http://localhost:3001';
+
+export interface ILPQuoteResult {
+  receiverWallet: {
+    id: string;
+    publicName?: string;
+    assetCode: string;
+    assetScale: number;
+  };
+  receiveAmount: { value: string; assetCode: string; assetScale: number };
+  debitAmount: { value: string; assetCode: string; assetScale: number };
+  fee: { value: string; assetCode: string; assetScale: number };
+}
+
+export interface ILPPayResult {
+  success: boolean;
+  paymentId: string;
+  incomingPaymentId: string;
+  sentAmount: { value: string; assetCode: string; assetScale: number };
+  receiveAmount: { value: string; assetCode: string; assetScale: number };
+  receiver: { walletAddress: string; publicName?: string };
+  note?: string;
+}
+
+/**
+ * Check if the ILP backend server is available and configured.
+ */
+export async function checkILPHealth(): Promise<{
+  status: string;
+  configured: boolean;
+  walletAddress: string | null;
+}> {
+  try {
+    const response = await fetch(`${ILP_SERVER_URL}/api/ilp/health`);
+    if (!response.ok) throw new Error('ILP server not available');
+    return response.json();
+  } catch {
+    return { status: 'unavailable', configured: false, walletAddress: null };
+  }
+}
+
+/**
+ * Resolve a receiver's ILP wallet address to get details.
+ * Calls the real Open Payments API via our backend.
+ */
+export async function resolveILPWallet(walletAddress: string): Promise<{
+  id: string;
+  publicName?: string;
+  assetCode: string;
+  assetScale: number;
+  authServer: string;
+  resourceServer: string;
+}> {
+  const response = await fetch(`${ILP_SERVER_URL}/api/ilp/resolve-wallet`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ walletAddress }),
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({ error: 'Unknown error' }));
+    throw new Error(err.error || 'Failed to resolve wallet');
+  }
+
+  return response.json();
+}
+
+/**
+ * Get a quote for an ILP tip.
+ * Returns the amount the receiver will get and the fee.
+ */
+export async function getILPQuote(
+  receiverWalletAddress: string,
+  amount: string,
+  assetCode: string = 'USD',
+  assetScale: number = 2,
+): Promise<ILPQuoteResult> {
+  const response = await fetch(`${ILP_SERVER_URL}/api/ilp/quote`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ receiverWalletAddress, amount, assetCode, assetScale }),
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({ error: 'Unknown error' }));
+    throw new Error(err.error || 'Failed to get quote');
+  }
+
+  return response.json();
+}
+
+/**
+ * Send a real ILP tip via the Open Payments API.
+ * This creates an incoming payment on the receiver's wallet,
+ * then an outgoing payment on Nalax's wallet to deliver the funds via ILP.
+ */
+export async function sendILPTip(
+  receiverWalletAddress: string,
+  amount: string,
+  assetCode: string = 'USD',
+  assetScale: number = 2,
+  note: string = 'Tip via Nalax',
+): Promise<ILPPayResult> {
+  const response = await fetch(`${ILP_SERVER_URL}/api/ilp/pay`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      receiverWalletAddress,
+      amount,
+      assetCode,
+      assetScale,
+      note,
+    }),
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({ error: 'Unknown error' }));
+    throw new Error(err.error || 'ILP payment failed');
+  }
+
+  return response.json();
+}
+
+/**
+ * Format an ILP amount for display.
+ * Converts from smallest unit (scale) to human-readable.
+ * e.g. value="1000", assetScale=2 → "10.00"
+ */
+export function formatILPAmount(value: string, assetScale: number): string {
+  const num = parseInt(value, 10) / Math.pow(10, assetScale);
+  return num.toFixed(assetScale);
+}
+
 // ─── Formatting Utilities ───────────────────────────────────────────────────
 
 export function formatStreamingAmount(amount: number, currency: string = 'USD'): string {

@@ -10,3 +10,22 @@ services:
       - type: rewrite
         source: /*
         destination: /index.html
+
+  - type: web
+    name: nalax-ilp-server
+    runtime: node
+    buildCommand: npm install --no-audit --no-fund --legacy-peer-deps
+    startCommand: npx tsx server/ilp.ts
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      - key: ILP_WALLET_ADDRESS_URL
+        sync: false
+      - key: ILP_AUTH_SERVER
+        sync: false
+      - key: ILP_PRIVATE_KEY_BASE64
+        sync: false
+      - key: ILP_KEY_ID
+        sync: false
+      - key: ILP_SERVER_PORT
+        value: 3001
