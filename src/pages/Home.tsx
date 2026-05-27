@@ -115,11 +115,11 @@ const FEATURES = [
 ];
 
 const featureColor: Record<string, { bg: string; text: string; border: string; glow: string }> = {
-  primary: { bg: 'bg-[rgba(91,94,255,0.1)]',   text: 'text-[#8B8EFF]', border: 'border-[rgba(91,94,255,0.25)]',  glow: 'group-hover:shadow-[0_0_40px_rgba(91,94,255,0.15)]' },
-  rose:    { bg: 'bg-[rgba(255,92,170,0.1)]',   text: 'text-[#FF7EC0]', border: 'border-[rgba(255,92,170,0.25)]', glow: 'group-hover:shadow-[0_0_40px_rgba(255,92,170,0.15)]' },
-  accent:  { bg: 'bg-[rgba(15,244,198,0.1)]',   text: 'text-[#0FF4C6]', border: 'border-[rgba(15,244,198,0.25)]', glow: 'group-hover:shadow-[0_0_40px_rgba(15,244,198,0.15)]' },
-  amber:   { bg: 'bg-[rgba(255,209,102,0.1)]',  text: 'text-[#FFD166]', border: 'border-[rgba(255,209,102,0.25)]',glow: 'group-hover:shadow-[0_0_40px_rgba(255,209,102,0.15)]' },
-  sky:     { bg: 'bg-[rgba(72,202,228,0.1)]',   text: 'text-[#48CAE4]', border: 'border-[rgba(72,202,228,0.25)]', glow: 'group-hover:shadow-[0_0_40px_rgba(72,202,228,0.15)]' },
+  primary: { bg: 'bg-[color-mix(in_srgb,var(--color-primary)_10%,transparent)]', text: 'text-[var(--color-primary-strong)]', border: 'border-[color-mix(in_srgb,var(--color-primary)_25%,transparent)]', glow: 'group-hover:shadow-[0_0_32px_var(--color-primary-glow)]' },
+  rose:    { bg: 'bg-[color-mix(in_srgb,var(--color-rose)_10%,transparent)]',    text: 'text-[var(--color-rose)]',           border: 'border-[color-mix(in_srgb,var(--color-rose)_25%,transparent)]',    glow: 'group-hover:shadow-[0_0_32px_var(--color-rose-glow)]' },
+  accent:  { bg: 'bg-[color-mix(in_srgb,var(--color-accent)_10%,transparent)]',  text: 'text-[var(--color-accent)]',         border: 'border-[color-mix(in_srgb,var(--color-accent)_25%,transparent)]',  glow: 'group-hover:shadow-[0_0_32px_var(--color-accent-glow)]' },
+  amber:   { bg: 'bg-[color-mix(in_srgb,var(--color-amber)_10%,transparent)]',   text: 'text-[var(--color-amber)]',          border: 'border-[color-mix(in_srgb,var(--color-amber)_25%,transparent)]',   glow: 'group-hover:shadow-[0_0_32px_color-mix(in_srgb,var(--color-amber)_22%,transparent)]' },
+  sky:     { bg: 'bg-[color-mix(in_srgb,var(--color-sky)_10%,transparent)]',     text: 'text-[var(--color-sky)]',            border: 'border-[color-mix(in_srgb,var(--color-sky)_25%,transparent)]',     glow: 'group-hover:shadow-[0_0_32px_color-mix(in_srgb,var(--color-sky)_22%,transparent)]' },
 };
 
 
@@ -183,15 +183,15 @@ export function Home() {
       <section className="relative min-h-screen flex flex-col items-center justify-center text-center pt-12 pb-24 overflow-hidden">
 
         {/* Background layers */}
-        <div className="absolute inset-0 grid-pattern opacity-30 pointer-events-none" />
+        <div className="absolute inset-0 grid-pattern opacity-40 pointer-events-none" />
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1000px] h-[1000px] rounded-full pointer-events-none"
-          style={{ background: 'radial-gradient(circle, rgba(91,94,255,0.11) 0%, rgba(15,244,198,0.05) 40%, transparent 70%)' }} />
-        <div className="absolute top-10 right-1/3 w-80 h-80 rounded-full blur-[100px] animate-glowPulse pointer-events-none"
-          style={{ background: 'rgba(91,94,255,0.07)' }} />
-        <div className="absolute bottom-20 left-1/3 w-60 h-60 rounded-full blur-[80px] animate-glowPulse pointer-events-none"
-          style={{ background: 'rgba(15,244,198,0.06)', animationDelay: '2s' }} />
-        <div className="absolute top-1/3 right-10 w-40 h-40 rounded-full blur-[60px] animate-glowPulse pointer-events-none"
-          style={{ background: 'rgba(255,92,170,0.05)', animationDelay: '4s' }} />
+          style={{ background: 'radial-gradient(circle, var(--color-primary-glow) 0%, var(--color-accent-soft) 40%, transparent 70%)' }} />
+        <div className="absolute top-10 right-1/3 w-80 h-80 rounded-full blur-[110px] animate-glowPulse pointer-events-none"
+          style={{ background: 'var(--color-primary-glow)' }} />
+        <div className="absolute bottom-20 left-1/3 w-60 h-60 rounded-full blur-[90px] animate-glowPulse pointer-events-none"
+          style={{ background: 'var(--color-accent-glow)', animationDelay: '2s' }} />
+        <div className="absolute top-1/3 right-10 w-40 h-40 rounded-full blur-[70px] animate-glowPulse pointer-events-none"
+          style={{ background: 'var(--color-rose-glow)', animationDelay: '4s' }} />
 
         {/* Floating decoration orbs */}
         <div className="absolute top-28 left-16 w-3 h-3 rounded-full bg-primary/40 animate-floatSlow hidden lg:block" />
@@ -209,8 +209,12 @@ export function Home() {
           {/* Eyebrow */}
           <div className="flex items-center justify-center gap-2 mb-6">
             <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[11px] font-mono uppercase tracking-[2px] font-medium"
-              style={{ background: 'linear-gradient(135deg, rgba(91,94,255,0.15), rgba(15,244,198,0.1))', border: '1px solid rgba(91,94,255,0.3)', color: '#9B9FFF' }}>
-              <Gem className="w-3 h-3" style={{ color: '#0FF4C6' }} /> منصة نشر لامركزية على Stellar
+              style={{
+                background: 'linear-gradient(135deg, color-mix(in srgb, var(--color-primary) 12%, transparent), color-mix(in srgb, var(--color-accent) 8%, transparent))',
+                border: '1px solid color-mix(in srgb, var(--color-primary) 28%, transparent)',
+                color: 'var(--color-primary-strong)',
+              }}>
+              <Gem className="w-3 h-3" style={{ color: 'var(--color-accent)' }} /> منصة نشر لامركزية على Stellar
             </span>
           </div>
 
@@ -243,7 +247,11 @@ export function Home() {
 
           {/* Stats Row */}
           <div className="grid grid-cols-2 sm:grid-cols-4 max-w-2xl mx-auto mt-4 rounded-2xl overflow-hidden"
-            style={{ border: '1px solid rgba(91,94,255,0.15)', background: 'rgba(13,13,24,0.8)', backdropFilter: 'blur(20px)' }}>
+            style={{
+              border: '1px solid color-mix(in srgb, var(--color-primary) 14%, transparent)',
+              background: 'color-mix(in srgb, var(--color-bg-elevated) 85%, transparent)',
+              backdropFilter: 'blur(20px)',
+            }}>
             {STATS.map(({ label, end, suffix, color }, i) => (
               <div key={i} className={`px-6 py-5 text-center ${i < 3 ? 'border-r border-[var(--color-border)]' : ''}`}>
                 <div className={`text-[28px] font-bold stat-number animate-countUp ${color}`} style={{ animationDelay: `${i * 0.15}s` }}>
@@ -302,11 +310,11 @@ export function Home() {
         {/* Background accent */}
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute top-0 left-0 right-0 h-px"
-            style={{ background: 'linear-gradient(90deg, transparent, rgba(91,94,255,0.25), rgba(15,244,198,0.15), transparent)' }} />
+            style={{ background: 'linear-gradient(90deg, transparent, color-mix(in srgb, var(--color-primary) 25%, transparent), color-mix(in srgb, var(--color-accent) 18%, transparent), transparent)' }} />
           <div className="absolute bottom-0 left-0 right-0 h-px"
-            style={{ background: 'linear-gradient(90deg, transparent, rgba(91,94,255,0.15), transparent)' }} />
+            style={{ background: 'linear-gradient(90deg, transparent, color-mix(in srgb, var(--color-primary) 15%, transparent), transparent)' }} />
           <div className="absolute inset-0"
-            style={{ background: 'radial-gradient(ellipse 70% 60% at 50% 50%, rgba(91,94,255,0.05) 0%, transparent 70%)' }} />
+            style={{ background: 'radial-gradient(ellipse 70% 60% at 50% 50%, var(--color-primary-glow) 0%, transparent 70%)' }} />
         </div>
 
         <div className="max-w-6xl mx-auto relative z-10">
@@ -314,7 +322,7 @@ export function Home() {
           <div className="grid lg:grid-cols-2 gap-12 items-center mb-14">
             <div>
               <span className="eyebrow">
-                <Hash className="w-3.5 h-3.5" style={{ color: '#0FF4C6' }} /> القنوات — جديد
+                <Hash className="w-3.5 h-3.5" /> القنوات — جديد
               </span>
               <h2 className="text-[44px] font-serif tracking-[-1.5px] leading-tight mb-4">
                 مجتمعات متخصصة
@@ -578,15 +586,21 @@ export function Home() {
       <section className="py-28 px-6">
         <div className="max-w-3xl mx-auto text-center relative">
           <div className="absolute inset-0 rounded-3xl -z-10 animate-glowPulse"
-            style={{ background: 'radial-gradient(ellipse, rgba(91,94,255,0.12) 0%, rgba(15,244,198,0.06) 50%, transparent 80%)', filter: 'blur(40px)' }} />
+            style={{ background: 'radial-gradient(ellipse, var(--color-primary-glow) 0%, var(--color-accent-glow) 50%, transparent 80%)', filter: 'blur(50px)' }} />
           <div className="relative p-14 rounded-3xl overflow-hidden"
-            style={{ background: 'linear-gradient(160deg, rgba(91,94,255,0.08) 0%, rgba(13,13,24,0.95) 50%, rgba(15,244,198,0.05) 100%)', border: '1px solid rgba(91,94,255,0.2)' }}>
+            style={{
+              background: 'linear-gradient(160deg, color-mix(in srgb, var(--color-primary) 8%, transparent) 0%, var(--color-bg-elevated) 50%, color-mix(in srgb, var(--color-accent) 6%, transparent) 100%)',
+              border: '1px solid color-mix(in srgb, var(--color-primary) 22%, transparent)',
+            }}>
             {/* Decorative top gradient line */}
             <div className="absolute top-0 left-0 right-0 h-px"
-              style={{ background: 'linear-gradient(90deg, transparent, rgba(91,94,255,0.6), rgba(15,244,198,0.4), transparent)' }} />
+              style={{ background: 'linear-gradient(90deg, transparent, color-mix(in srgb, var(--color-primary) 55%, transparent), color-mix(in srgb, var(--color-accent) 45%, transparent), transparent)' }} />
 
             <div className="w-16 h-16 mx-auto mb-6 rounded-2xl flex items-center justify-center"
-              style={{ background: 'linear-gradient(135deg, #5B5EFF, #0FF4C6)', boxShadow: '0 0 50px rgba(91,94,255,0.5), 0 0 80px rgba(15,244,198,0.2)' }}>
+              style={{
+                background: 'linear-gradient(135deg, var(--color-primary), var(--color-accent))',
+                boxShadow: '0 8px 40px var(--color-primary-glow), 0 16px 60px var(--color-accent-glow)',
+              }}>
               <Gem className="w-8 h-8 text-white" />
             </div>
             <h2 className="text-[44px] font-serif tracking-[-1.5px] mb-4 leading-tight">

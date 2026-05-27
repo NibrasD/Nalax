@@ -1,10 +1,11 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useWallet } from '../store/useWallet';
 import { formatAddress } from '../lib/utils';
-import { Wallet, PenSquare, Compass, LayoutDashboard, Gem, Menu, X, Sun, Moon, Zap, Hash, Sparkles, LogOut, ChevronDown } from 'lucide-react';
+import { Wallet, PenSquare, Compass, LayoutDashboard, Menu, X, Sun, Moon, Zap, Hash, Sparkles, LogOut, ChevronDown } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { EmailAuthModal } from './EmailAuthModal';
+import { Logo, Wordmark } from './Logo';
 
 export function Navbar() {
   const { t, i18n } = useTranslation();
@@ -75,17 +76,14 @@ export function Navbar() {
 
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2.5 group">
-            <div className="w-9 h-9 flex items-center justify-center relative">
-              <div className="absolute inset-0 rounded-xl"
-                style={{ background: 'linear-gradient(135deg, rgba(91,94,255,0.4), rgba(15,244,198,0.3))', filter: 'blur(8px)' }} />
-              <div className="relative z-10 w-9 h-9 rounded-xl flex items-center justify-center"
-                style={{ background: 'linear-gradient(135deg, #5B5EFF, #0FF4C6)', boxShadow: '0 0 20px rgba(91,94,255,0.5)' }}>
-                <Gem className="w-4.5 h-4.5 text-white" />
-              </div>
-            </div>
-            <span className="text-[22px] font-serif tracking-[-0.5px] text-white">
-              Na<span className="text-gradient">lax</span>
-            </span>
+            <Logo
+              size={36}
+              className="transition-transform duration-300 group-hover:scale-105"
+              style={{
+                filter: 'drop-shadow(0 4px 14px var(--color-primary-glow))',
+              }}
+            />
+            <Wordmark className="text-[22px]" />
           </Link>
 
           {/* Desktop Nav */}
@@ -96,12 +94,15 @@ export function Navbar() {
                 <Link
                   key={to}
                   to={to}
-                  className={`px-4 py-2 text-[13px] font-semibold transition-all duration-200 rounded-xl flex items-center gap-1.5 ${
+                  className={`px-4 py-2 text-[13px] font-semibold transition-all duration-200 rounded-lg flex items-center gap-1.5 ${
                     isActive
-                      ? 'text-white shadow-[0_0_20px_rgba(91,94,255,0.4)]'
+                      ? 'text-white'
                       : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-main)] hover:bg-[var(--color-surface-hover)]'
                   }`}
-                  style={isActive ? { background: 'linear-gradient(135deg, #5B5EFF, #4446D6)' } : {}}
+                  style={isActive ? {
+                    background: 'linear-gradient(135deg, var(--color-primary), var(--color-primary-soft))',
+                    boxShadow: '0 4px 14px var(--color-primary-glow)',
+                  } : {}}
                 >
                   <Icon className="w-3.5 h-3.5" />
                   {label}
@@ -192,8 +193,7 @@ export function Navbar() {
                 <button
                   onClick={connect}
                   disabled={isConnecting}
-                  className="flex items-center gap-2 px-5 py-2.5 font-semibold text-[11px] font-mono uppercase tracking-[1.5px] transition-all disabled:opacity-50 cursor-pointer rounded-xl text-white"
-                  style={{ background: 'linear-gradient(135deg, #5B5EFF, #4446D6)', boxShadow: '0 4px 20px rgba(91,94,255,0.4)' }}
+                  className="btn-primary text-[11px] uppercase tracking-[1.2px] disabled:opacity-50"
                 >
                   <Wallet className="w-3.5 h-3.5" />
                   {isConnecting ? t('nav.connecting') : t('nav.connect_wallet')}
@@ -218,7 +218,7 @@ export function Navbar() {
             {/* Mobile Toggle */}
             <button
               onClick={() => setMobileOpen(!mobileOpen)}
-              className="md:hidden text-white cursor-pointer p-1"
+              className="md:hidden text-[var(--color-text-main)] cursor-pointer p-1"
             >
               {mobileOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
             </button>
@@ -266,7 +266,7 @@ export function Navbar() {
                   <button
                     onClick={connect}
                     disabled={isConnecting}
-                    className="w-full py-2.5 bg-white text-black font-semibold text-[11px] font-mono uppercase tracking-[1.5px] cursor-pointer rounded-sm flex items-center justify-center gap-2"
+                    className="btn-primary w-full text-[11px] uppercase tracking-[1.2px]"
                   >
                     <Wallet className="w-4 h-4" />
                     {isConnecting ? t('nav.connecting') : t('nav.connect_wallet')}

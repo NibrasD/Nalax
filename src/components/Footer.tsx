@@ -1,6 +1,7 @@
-import { Gem, Github, ExternalLink, Hash, Zap, ArrowUpRight } from 'lucide-react';
+import { Github, ExternalLink, Hash, ArrowUpRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { Logo, Wordmark } from './Logo';
 
 const CHANNEL_QUICK = [
   { id: 'stellar-dev',      icon: '⚡', name: 'Stellar Developers' },
@@ -42,7 +43,7 @@ export function Footer() {
 
       {/* Subtle background glow */}
       <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] rounded-full blur-[100px] pointer-events-none"
-        style={{ background: 'radial-gradient(ellipse, rgba(124,77,255,0.05) 0%, transparent 70%)' }} />
+        style={{ background: 'radial-gradient(ellipse, var(--color-primary-glow) 0%, transparent 70%)' }} />
 
       <div className="max-w-7xl mx-auto px-6 pt-16 pb-10 relative z-10">
 
@@ -52,12 +53,12 @@ export function Footer() {
           {/* Brand column */}
           <div className="col-span-2 md:col-span-1">
             <Link to="/" className="flex items-center gap-2.5 mb-5 group w-fit">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-[0_0_20px_rgba(124,77,255,0.3)] group-hover:shadow-[0_0_28px_rgba(124,77,255,0.5)] transition-all">
-                <Gem className="w-4.5 h-4.5 text-white" />
-              </div>
-              <span className="text-[20px] font-serif tracking-[-0.5px]">
-                Na<span className="text-gradient">lax</span>
-              </span>
+              <Logo
+                size={36}
+                className="transition-transform duration-300 group-hover:scale-105"
+                style={{ filter: 'drop-shadow(0 4px 14px var(--color-primary-glow))' }}
+              />
+              <Wordmark className="text-[20px]" />
             </Link>
 
             <p className="text-[13px] text-[var(--color-text-dim)] leading-[1.7] mb-5 max-w-[220px]">
@@ -88,7 +89,7 @@ export function Footer() {
                     {'to' in link ? (
                       <Link
                         to={link.to}
-                        className="text-[13px] text-[var(--color-text-secondary)] hover:text-white transition-colors flex items-center gap-1.5 group"
+                        className="text-[13px] text-[var(--color-text-secondary)] hover:text-[var(--color-text-main)] transition-colors flex items-center gap-1.5 group"
                       >
                         {link.label}
                         <ArrowUpRight className="w-3 h-3 opacity-0 group-hover:opacity-60 transition-opacity" />
@@ -98,7 +99,7 @@ export function Footer() {
                         href={link.href}
                         target="_blank"
                         rel="noreferrer"
-                        className="text-[13px] text-[var(--color-text-secondary)] hover:text-white transition-colors flex items-center gap-1.5 group"
+                        className="text-[13px] text-[var(--color-text-secondary)] hover:text-[var(--color-text-main)] transition-colors flex items-center gap-1.5 group"
                       >
                         {'icon' in link && link.icon && <link.icon className="w-3 h-3" />}
                         {link.label}
@@ -121,7 +122,7 @@ export function Footer() {
                 <li key={id}>
                   <Link
                     to={`/channels/${id}`}
-                    className="flex items-center gap-2 text-[13px] text-[var(--color-text-secondary)] hover:text-white transition-colors group"
+                    className="flex items-center gap-2 text-[13px] text-[var(--color-text-secondary)] hover:text-[var(--color-text-main)] transition-colors group"
                   >
                     <span className="text-base leading-none">{icon}</span>
                     <span>{name}</span>
@@ -132,7 +133,7 @@ export function Footer() {
               <li>
                 <Link
                   to="/channels"
-                  className="text-[11px] font-mono text-primary hover:text-white transition-colors flex items-center gap-1 mt-2"
+                  className="text-[11px] font-mono text-[var(--color-primary)] hover:text-[var(--color-primary-strong)] transition-colors flex items-center gap-1 mt-2"
                 >
                   {t('channels.all_channels')} <ArrowUpRight className="w-3 h-3" />
                 </Link>
