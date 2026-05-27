@@ -40,64 +40,85 @@ export function WebMonetizationMiniApp({
   const [isPaused, setIsPaused] = useState(false);
   const [elapsedTime, setElapsedTime] = useState(0);
   const [hasExtension, setHasExtension] = useState(false);
+  // Auto-pause when the tab is hidden (background) so the reader is not
+  // charged while looking at another tab/window.
+  const [isHidden, setIsHidden] = useState(
+    typeof document !== 'undefined' && document.visibilityState === 'hidden'
+  );
   const cleanupRef = useRef<(() => void) | null>(null);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Check for Web Monetization support
   useEffect(() => {
     setHasExtension(isWebMonetizationSupported());
   }, []);
 
-  // Set up real Web Monetization
+  // Track tab visibility via the Page Visibility API.
+  // When the tab goes to the background, we tear down the monetization
+  // subscription (removing <link rel="monetization">) so the browser
+  // extension stops streaming payments. Reader is not on the page → no charge.
   useEffect(() => {
-    if (isPaused || !authorPaymentPointer) return;
+    if (typeof document === 'undefined') return;
+    const handleVisibilityChange = () => {
+      setIsHidden(document.visibilityState === 'hidden');
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, []);
 
-    const newSession = createStreamingSession(authorPaymentPointer);
-    setSession(newSession);
+  // Create / dispose the streaming session once per article.
+  // Kept separate from the subscription effect below so totals/elapsed time
+  // are preserved across pause / tab-switch cycles.
+  useEffect(() => {
+    if (!authorPaymentPointer) return;
+    setSession(createStreamingSession(authorPaymentPointer));
+    setElapsedTime(0);
+    return () => {
+      setSession(prev => (prev ? endStreamingSession(prev) : null));
+    };
+  }, [authorPaymentPointer]);
 
-    // Subscribe to REAL monetization events
+  // Subscribe to real Web Monetization events.
+  // Active only when:
+  //   • there is a wallet address
+  //   • the user did not manually pause
+  //   • the tab is currently visible (Page Visibility API)
+  // Any of these flipping causes the cleanup to run, which removes the
+  // <link rel="monetization"> tag and stops the elapsed-time counter.
+  useEffect(() => {
+    if (isPaused || isHidden || !authorPaymentPointer) return;
+
     const cleanup = subscribeToMonetization(
       authorPaymentPointer,
       (payment: MonetizationPayment) => {
-        // Real payment received from the browser extension!
-        setSession(prev => prev ? addPaymentToSession(prev, payment) : prev);
+        // Real payment received from the browser extension
+        setSession(prev => (prev ? addPaymentToSession(prev, payment) : prev));
       },
-      () => {
-        // Monetization started
-        setIsActive(true);
-      },
-      () => {
-        // Monetization stopped
-        setIsActive(false);
-      },
+      () => setIsActive(true),
+      () => setIsActive(false),
     );
-
     cleanupRef.current = cleanup;
 
-    // Timer for elapsed time display
+    // Timer only ticks while monetization is actually live, so the
+    // XLM/min rate stays accurate.
     timerRef.current = setInterval(() => {
       setElapsedTime(prev => prev + 1);
     }, 1000);
 
     return () => {
       cleanup();
-      if (timerRef.current) clearInterval(timerRef.current);
-      setSession(prev => prev ? endStreamingSession(prev) : null);
+      cleanupRef.current = null;
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+      setIsActive(false);
     };
-  }, [authorPaymentPointer, isPaused]);
+  }, [authorPaymentPointer, isPaused, isHidden]);
 
   const togglePause = useCallback(() => {
-    if (isPaused) {
-      setIsPaused(false);
-    } else {
-      setIsPaused(true);
-      if (cleanupRef.current) {
-        cleanupRef.current();
-        cleanupRef.current = null;
-      }
-      if (timerRef.current) clearInterval(timerRef.current);
-    }
-  }, [isPaused]);
+    setIsPaused(prev => !prev);
+  }, []);
 
   const formatTime = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
@@ -125,26 +146,28 @@ export function WebMonetizationMiniApp({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className={`relative flex items-center justify-center w-8 h-8 rounded-full ${
-              isActive && !isPaused
+              isActive && !isPaused && !isHidden
                 ? 'bg-accent/20'
                 : 'bg-[var(--color-surface)]'
             }`}>
               <Radio className={`w-4 h-4 ${
-                isActive && !isPaused ? 'text-accent' : 'text-[var(--color-text-dim)]'
+                isActive && !isPaused && !isHidden ? 'text-accent' : 'text-[var(--color-text-dim)]'
               }`} />
-              {isActive && !isPaused && (
+              {isActive && !isPaused && !isHidden && (
                 <span className="absolute inset-0 rounded-full bg-accent/30 animate-ping" />
               )}
             </div>
             <div>
               <div className="text-[12px] font-semibold">
-                {isActive && !isPaused
-                  ? 'دفع متدفق نشط'
-                  : isPaused
-                    ? 'متوقف مؤقتاً'
-                    : hasExtension
-                      ? 'في انتظار الدفع...'
-                      : 'الإضافة غير مثبتة'}
+                {isPaused
+                  ? 'متوقف مؤقتاً'
+                  : isHidden
+                    ? 'متوقف — التبويب فى الخلفية'
+                    : isActive
+                      ? 'دفع متدفق نشط'
+                      : hasExtension
+                        ? 'في انتظار الدفع...'
+                        : 'الإضافة غير مثبتة'}
               </div>
               <div className="text-[10px] text-[var(--color-text-dim)] font-mono">
                 Web Monetization API
@@ -166,7 +189,7 @@ export function WebMonetizationMiniApp({
 
         {/* Payment Counter */}
         <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-4 text-center relative overflow-hidden">
-          {isActive && !isPaused && (
+          {isActive && !isPaused && !isHidden && (
             <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-accent/5 to-primary/5 animate-pulse" />
           )}
           <div className="relative z-10">
