@@ -19,6 +19,8 @@ import {
   formatILPAmount,
   ILPQuoteResult,
 } from '../../lib/ilp';
+import { tipAuthor } from '../../lib/stellar';
+import { xlmToStroops } from '../../lib/contract';
 import { Heart, Send, Sparkles, Globe, ChevronDown, ExternalLink, Zap, Layers } from 'lucide-react';
 
 const TIP_AMOUNTS_XLM = [1, 5, 10, 25];
@@ -30,9 +32,19 @@ interface TipJarMiniAppProps {
   recipientAddress: string;
   /** ILP wallet address for the recipient (e.g. https://ilp.rafiki.money/bob) */
   recipientILPWallet?: string;
+  /**
+   * On-chain content NFT id. When present, Stellar tips are routed through
+   * the Soroban `tip_author` contract method so the article's tip_count and
+   * total_raised counters are incremented on-chain — making real activity
+   * visible in dashboards and article cards. When absent (e.g. Feed posts
+   * with no minted article), tips fall back to a plain Stellar payment.
+   */
+  tokenId?: number;
+  /** Fires after a successful on-chain tip so the parent can refresh state. */
+  onTipSuccess?: (txHash: string, amountXlm: number) => void;
 }
 
-export function TipJarMiniApp({ recipientName, recipientAddress, recipientILPWallet }: TipJarMiniAppProps) {
+export function TipJarMiniApp({ recipientName, recipientAddress, recipientILPWallet, tokenId, onTipSuccess }: TipJarMiniAppProps) {
   const { isConnected, publicKey, provider, refreshBalance } = useWallet();
   const toast = useToast();
 
@@ -52,6 +64,11 @@ export function TipJarMiniApp({ recipientName, recipientAddress, recipientILPWal
   const [loadingQuote, setLoadingQuote] = useState(false);
 
   const currentAmount = customAmount ? Number(customAmount) : selectedAmount;
+
+  // Stellar tips go through the Soroban contract whenever the article has
+  // an on-chain token id — that's the only way the contract's tip_count and
+  // total_raised counters get bumped, which is what feeds the dashboards.
+  const usesContract = method === 'stellar' && typeof tokenId === 'number' && tokenId > 0;
 
   // Check ILP health on mount
   useEffect(() => {
@@ -81,13 +98,33 @@ export function TipJarMiniApp({ recipientName, recipientAddress, recipientILPWal
       setSending(true);
       const lid = toast.addToast({
         type: 'loading',
-        title: 'جاري الإرسال عبر Stellar...',
-        message: isQuickWallet ? 'توقيع محلى — بلا انتظار' : 'في انتظار توقيع المحفظة',
+        title: usesContract ? 'تيبس على السلسلة...' : 'جاري الإرسال عبر Stellar...',
+        message: isQuickWallet
+          ? 'توقيع محلى — بلا انتظار'
+          : usesContract
+            ? 'استدعاء عقد Soroban'
+            : 'في انتظار توقيع المحفظة',
       });
       try {
-        const result = await sendDirectXLMTip(publicKey, recipientAddress, currentAmount.toString());
-        setLastTxHash(result.txHash); setLastILPPaymentId(null);
-        toast.updateToast(lid, { type: 'success', title: 'تم إرسال الدعم!', message: `${currentAmount} XLM → TX: ${result.txHash.slice(0, 12)}...` });
+        let txHash: string;
+        if (usesContract) {
+          // Route through the Soroban contract so on-chain stats update.
+          const stroops = xlmToStroops(currentAmount);
+          const result = await tipAuthor(publicKey, tokenId!, stroops);
+          txHash = result.hash;
+        } else {
+          // No token id (mock posts in Feed/Channel) — fall back to a plain
+          // Stellar payment. Recipient is paid; just no on-chain stats.
+          const result = await sendDirectXLMTip(publicKey, recipientAddress, currentAmount.toString());
+          txHash = result.txHash;
+        }
+        setLastTxHash(txHash); setLastILPPaymentId(null);
+        toast.updateToast(lid, {
+          type: 'success',
+          title: usesContract ? 'تم التيبس على السلسلة!' : 'تم إرسال الدعم!',
+          message: `${currentAmount} XLM → TX: ${txHash.slice(0, 12)}...`,
+        });
+        onTipSuccess?.(txHash, currentAmount);
         setSent(true); setTimeout(() => { setSent(false); setLastTxHash(null); }, 5000);
       } catch (e: any) {
         toast.updateToast(lid, { type: 'error', title: 'فشل الإرسال', message: e?.message || 'تم رفض المعاملة' });
@@ -215,7 +252,9 @@ export function TipJarMiniApp({ recipientName, recipientAddress, recipientILPWal
         <div className="text-center">
           <span className="inline-flex items-center gap-1.5 text-[9px] font-mono uppercase tracking-wider text-[var(--color-text-dim)] bg-[var(--color-surface)] px-2.5 py-1 rounded-full border border-[var(--color-border)]">
             <span className={`w-1.5 h-1.5 rounded-full ${method === 'stellar' ? 'bg-primary' : 'bg-accent'} animate-pulse`} />
-            {method === 'stellar' ? 'Stellar Testnet' : 'ILP Testnet — Open Payments'}
+            {method === 'stellar'
+              ? (usesContract ? 'Soroban Contract — On-Chain Stats' : 'Stellar Testnet — Direct Payment')
+              : 'ILP Testnet — Open Payments'}
             {isQuickWallet && method === 'stellar' && (
               <>
                 <span className="text-[var(--color-text-muted)]">·</span>

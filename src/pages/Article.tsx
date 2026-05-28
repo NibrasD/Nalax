@@ -308,6 +308,12 @@ export function Article() {
             <TipJarMiniApp
               recipientName={article.authorName || formatAddress(article.authorPublicKey)}
               recipientAddress={article.authorPublicKey}
+              tokenId={article.tokenId}
+              onTipSuccess={(_txHash, amount) => {
+                // Bump the local store so the article card updates instantly;
+                // the on-chain values will catch up on the next page load.
+                if (article.tokenId) tipArticle(article.id, amount);
+              }}
             />
 
             {/* On-chain verification */}
