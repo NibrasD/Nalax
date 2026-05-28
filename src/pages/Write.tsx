@@ -6,7 +6,7 @@ import { useToast } from '../store/useToast';
 import { generateMockId, readingTime } from '../lib/utils';
 import { hashContent } from '../lib/contract';
 import { uploadToIPFS } from '../lib/ipfs';
-import { writeArticleToChain, mintContent, extractTokenIdFromResult, fetchContentById, ensureAuthorRegistered } from '../lib/stellar';
+import { writeArticleToChain, mintContent, extractTokenIdFromResult, fetchContentById, ensureAuthorRegistered, getLatestMintedTokenId } from '../lib/stellar';
 import { readSorobanContract } from '../lib/stellar';
 import { CONTRACT_METHODS } from '../lib/contract';
 import { MarkdownEditor } from '../components/MarkdownEditor';
@@ -73,18 +73,22 @@ export function Write() {
 
       let extractedTokenId = extractTokenIdFromResult(result);
       if (extractedTokenId === null) {
+        // Reliable fallback: query the contract for the latest token ID
+        extractedTokenId = await getLatestMintedTokenId();
+      }
+      if (extractedTokenId === null) {
+        // Last resort: try the old method
         try {
           const nextId = await readSorobanContract(CONTRACT_METHODS.GET_NEXT_TOKEN_ID);
           if (nextId && typeof nextId === 'number') {
             extractedTokenId = nextId - 1;
           }
         } catch (e) {
-          console.error('Fallback token ID fetch failed:', e);
+          console.error('All token ID extraction methods failed:', e);
         }
       }
-      if (extractedTokenId === null) {
-        extractedTokenId = Date.now();
-        console.warn('Using timestamp as token ID fallback — data may be inconsistent');
+      if (extractedTokenId === null || extractedTokenId <= 0) {
+        throw new Error('Failed to extract token ID from mint result. The article was minted but could not be linked. Check the Stellar explorer with TX: ' + txHash);
       }
 
       await new Promise(r => setTimeout(r, 1000));

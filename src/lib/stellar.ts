@@ -415,10 +415,15 @@ export async function fetchXlmBalance(publicKey: string): Promise<string> {
 /**
  * Extract the token_id from a mint_content transaction result.
  * The contract returns a ContentNFT struct which contains token_id.
+ *
+ * Tries multiple extraction strategies in order:
+ * 1. resultMetaXdr → sorobanMeta().returnValue() (standard Soroban path)
+ * 2. Flatten the native result if it's already decoded
+ * 3. Returns null if all strategies fail (caller should use getNextTokenId - 1)
  */
 export function extractTokenIdFromResult(result: any): number | null {
+  // Strategy 1: Extract from resultMetaXdr
   try {
-    // Try to extract from resultMetaXdr (Soroban return value)
     const meta = result?.result?.resultMetaXdr;
     if (meta) {
       const returnVal = meta.v3().sorobanMeta().returnValue();
@@ -426,13 +431,53 @@ export function extractTokenIdFromResult(result: any): number | null {
       if (native && typeof native.token_id !== 'undefined') {
         return Number(native.token_id);
       }
+      // Some SDK versions return it as token_id or tokenId
+      if (native && typeof native.tokenId !== 'undefined') {
+        return Number(native.tokenId);
+      }
+      // If it's a plain number (e.g. the struct was flattened)
+      if (typeof native === 'number' || typeof native === 'bigint') {
+        return Number(native);
+      }
     }
   } catch (e) {
-    console.error('Failed to extract token_id from result meta:', e);
+    console.error('Strategy 1 (resultMetaXdr) failed:', e);
   }
 
-  // Fallback: try to get the next token id from the contract and subtract 1
-  // (the just-minted token)
+  // Strategy 2: Check if result itself contains decoded returnValue
+  try {
+    const returnValue = result?.result?.returnValue;
+    if (returnValue) {
+      const native = typeof returnValue === 'object' && returnValue._arm 
+        ? scValToNative(returnValue) 
+        : returnValue;
+      if (native && typeof native.token_id !== 'undefined') {
+        return Number(native.token_id);
+      }
+      if (native && typeof native.tokenId !== 'undefined') {
+        return Number(native.tokenId);
+      }
+    }
+  } catch (e) {
+    console.error('Strategy 2 (returnValue) failed:', e);
+  }
+
+  return null;
+}
+
+/**
+ * Reliably get the latest minted token ID by querying the contract's next_token_id
+ * and subtracting 1. This is the most reliable fallback after a successful mint.
+ */
+export async function getLatestMintedTokenId(): Promise<number | null> {
+  try {
+    const nextId = await readSorobanContract(CONTRACT_METHODS.GET_NEXT_TOKEN_ID);
+    if (nextId && (typeof nextId === 'number' || typeof nextId === 'bigint')) {
+      return Number(nextId) - 1;
+    }
+  } catch (e) {
+    console.error('getLatestMintedTokenId failed:', e);
+  }
   return null;
 }
 
