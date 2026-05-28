@@ -29,6 +29,7 @@ import {
   importWalletFromSecret,
   fundFromFriendbot,
 } from '../lib/quick-wallet';
+import { registerAuthor, isAuthorRegistered } from '../lib/stellar';
 
 interface EmailAuthModalProps {
   isOpen: boolean;
@@ -52,6 +53,7 @@ export function EmailAuthModal({ isOpen, onClose }: EmailAuthModalProps) {
   const [secretCopied, setSecretCopied] = useState(false);
   const [addressCopied, setAddressCopied] = useState(false);
   const [importValue, setImportValue] = useState('');
+  const [username, setUsername] = useState('');
 
   const importRef = useRef<HTMLInputElement>(null);
 
@@ -67,6 +69,7 @@ export function EmailAuthModal({ isOpen, onClose }: EmailAuthModalProps) {
       setSecretCopied(false);
       setAddressCopied(false);
       setImportValue('');
+      setUsername('');
     }
   }, [isOpen]);
 
@@ -74,6 +77,17 @@ export function EmailAuthModal({ isOpen, onClose }: EmailAuthModalProps) {
 
   const handleCreate = async () => {
     setError(null);
+
+    // Validate username
+    if (!username.trim()) {
+      setError('يرجى اختيار اسم مستخدم');
+      return;
+    }
+    if (username.trim().length < 2) {
+      setError('اسم المستخدم يجب أن يكون حرفين على الأقل');
+      return;
+    }
+
     try {
       // 1. إنشاء المحفظة محلياً
       setStep('creating');
@@ -92,6 +106,19 @@ export function EmailAuthModal({ isOpen, onClose }: EmailAuthModalProps) {
         connectQuickWallet(address);
         // تحديث الرصيد في useWallet ليعرض الرقم الفعلي
         setTimeout(() => refreshBalance(), 500);
+
+        // 3. تسجيل المؤلف على العقد الذكي بالاسم المختار
+        try {
+          await registerAuthor(address, username.trim(), 'Nalax Creator');
+          // حفظ الاسم محلياً
+          localStorage.setItem('nalax_username', username.trim());
+        } catch (regErr: any) {
+          // إذا كان مسجّل بالفعل (Error #4) — تجاهل
+          if (!regErr?.message?.includes('#4')) {
+            console.warn('[QuickWallet] فشل تسجيل المؤلف:', regErr);
+          }
+        }
+
         setStep('created');
       } else {
         // فشل التمويل لكن المحفظة أُنشئت — اعرضها مع تحذير
@@ -229,6 +256,27 @@ export function EmailAuthModal({ isOpen, onClose }: EmailAuthModalProps) {
 
             {tab === 'create' && (
               <div className="space-y-4">
+                {/* حقل اسم المستخدم */}
+                <div>
+                  <label className="block text-[11px] text-[var(--color-text-dim)] mb-2">
+                    اسم المستخدم (سيظهر ككاتب)
+                  </label>
+                  <input
+                    type="text"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    placeholder="مثال: أحمد، Sarah، مبدع..."
+                    className="input-field text-[13px]"
+                    maxLength={30}
+                  />
+                </div>
+
+                {error && step === 'choose' && (
+                  <p className="text-[12px] text-[var(--color-error)] text-center">
+                    {error}
+                  </p>
+                )}
+
                 <div className="grid grid-cols-3 gap-2 text-center">
                   {[
                     { icon: '⚡', label: 'فوري' },
@@ -249,7 +297,8 @@ export function EmailAuthModal({ isOpen, onClose }: EmailAuthModalProps) {
 
                 <button
                   onClick={handleCreate}
-                  className="btn-primary w-full flex items-center justify-center gap-2"
+                  disabled={!username.trim()}
+                  className="btn-primary w-full flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   <Sparkles className="w-4 h-4" />
                   إنشاء محفظة الآن

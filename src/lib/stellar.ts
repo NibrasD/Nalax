@@ -513,8 +513,9 @@ export async function ensureAuthorRegistered(publicKey: string, name?: string, b
   const registered = await isAuthorRegistered(publicKey);
   if (registered) return false;
 
-  // Auto-register with provided name/bio or defaults
-  const authorName = name || publicKey.substring(0, 8) + '...';
+  // Try to get saved username from localStorage
+  const savedName = typeof window !== 'undefined' ? localStorage.getItem('nalax_username') : null;
+  const authorName = name || savedName || publicKey.substring(0, 8) + '...';
   const authorBio = bio || 'Nalax Creator';
   await registerAuthor(publicKey, authorName, authorBio);
   return true;
