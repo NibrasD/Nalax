@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import {
   ArrowRight, Zap, Shield, Coins, PenSquare, Hash,
   Users, BookOpen, TrendingUp, Sparkles, Lock, Globe,
-  ChevronRight, Star, MessageCircle, Heart, Gem,
+  ChevronRight, MessageCircle, Heart, Gem,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useChannelStore } from '../store/useChannelStore';
@@ -326,8 +326,8 @@ export function Home() {
             <div className="grid grid-cols-2 gap-4">
               {[
                 { icon: Hash,  label: 'قنوات نشطة',    val: String(channels.length),    color: 'text-primary', bg: 'bg-primary/10',  border: 'border-primary/20' },
-                { icon: Users, label: 'عضو في القنوات', val: String(channels.reduce((s, c) => s + (c.members?.length || 0), 0)),  color: 'text-accent',  bg: 'bg-accent/10',   border: 'border-accent/20' },
-                { icon: MessageCircle, label: 'منشور', val: String(channels.reduce((s, c) => s + (c.posts?.length || 0), 0)), color: 'text-rose', bg: 'bg-rose/10',     border: 'border-rose/20' },
+                { icon: Users, label: 'عضو في القنوات', val: String(channels.reduce((s, c) => s + (c.memberCount || 0), 0)),  color: 'text-accent',  bg: 'bg-accent/10',   border: 'border-accent/20' },
+                { icon: MessageCircle, label: 'منشور', val: String(channels.reduce((s, c) => s + (c.postCount || 0), 0)), color: 'text-rose', bg: 'bg-rose/10',     border: 'border-rose/20' },
                 { icon: Heart, label: 'مقال على السلسلة',  val: String(totalArticles),   color: 'text-amber',   bg: 'bg-amber/10',    border: 'border-amber/20' },
               ].map(({ icon: Icon, label, val, color, bg, border }) => (
                 <div key={label} className={`glass-panel p-5 border ${border} ${bg}/30 text-center`}>
@@ -354,10 +354,10 @@ export function Home() {
                   </div>
                   <div className="flex items-center gap-3 mt-1">
                     <span className="text-[11px] font-mono text-[var(--color-text-dim)] flex items-center gap-1">
-                      <Users className="w-3 h-3" /> {ch.members?.length || 0}
+                      <Users className="w-3 h-3" /> {ch.memberCount || 0}
                     </span>
                     <span className="text-[11px] font-mono text-[var(--color-text-dim)] flex items-center gap-1">
-                      <PenSquare className="w-3 h-3" /> {ch.posts?.length || 0}
+                      <PenSquare className="w-3 h-3" /> {ch.postCount || 0}
                     </span>
                   </div>
                 </div>
@@ -456,7 +456,7 @@ export function Home() {
                       <Gem className="w-5 h-5 text-white" />
                     </div>
                     <div>
-                      <div className="text-[12px] font-semibold">Content NFT #1,247</div>
+                      <div className="text-[12px] font-semibold">Content NFT</div>
                       <div className="text-[9px] font-mono text-primary/70 uppercase tracking-wider">Stellar Testnet</div>
                     </div>
                   </div>
@@ -490,9 +490,9 @@ export function Home() {
                 {/* Stats row */}
                 <div className="flex items-center gap-4 pt-4 border-t border-[var(--color-border)]">
                   {[
-                    { icon: BookOpen, val: '247', label: 'قارئ' },
-                    { icon: Heart,    val: '38',  label: 'دعم XLM' },
-                    { icon: TrendingUp, val: '12.5 XLM', label: 'إجمالي' },
+                    { icon: BookOpen, val: '—', label: 'قارئ' },
+                    { icon: Heart,    val: '—',  label: 'دعم' },
+                    { icon: TrendingUp, val: '— XLM', label: 'إجمالي' },
                   ].map(({ icon: Icon, val, label }) => (
                     <div key={label} className="flex items-center gap-1.5 text-[11px] font-mono text-[var(--color-text-dim)]">
                       <Icon className="w-3.5 h-3.5 text-primary/60" />

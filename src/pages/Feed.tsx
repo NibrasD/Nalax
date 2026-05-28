@@ -1,151 +1,18 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useWallet } from '../store/useWallet';
 import { formatAddress, addressGradient } from '../lib/utils';
 import { TipJarMiniApp } from '../components/miniapps/TipJarMiniApp';
-import { PollMiniApp } from '../components/miniapps/PollMiniApp';
-import { NFTMintMiniApp } from '../components/miniapps/NFTMintMiniApp';
-import { QuizMiniApp } from '../components/miniapps/QuizMiniApp';
-import { StreakMiniApp } from '../components/miniapps/StreakMiniApp';
+import { fetchAllArticlesFromChain } from '../lib/stellar';
+import { Link } from 'react-router-dom';
 import {
-  Heart, MessageCircle, Repeat2, Share2, MoreHorizontal,
-  Zap, Shield, Image, Sparkles, TrendingUp, Globe, Users
+  Heart, MessageCircle, Share2,
+  Zap, Shield, Sparkles, Globe, Users, BookOpen, Loader2
 } from 'lucide-react';
 
-// ─── Demo Data ────────────────────────────────────────────────────────────────
+// ─── Article Feed Card ────────────────────────────────────────────────────────
 
-interface Cast {
-  id: string;
-  author: {
-    name: string;
-    address: string;
-    verified: boolean;
-    avatar?: string;
-  };
-  text: string;
-  timestamp: string;
-  likes: number;
-  replies: number;
-  recasts: number;
-  miniApp?: 'tip-jar' | 'poll' | 'nft-mint' | 'quiz' | 'streak';
-  miniAppData?: any;
-  liked?: boolean;
-}
-
-const DEMO_CASTS: Cast[] = [
-  {
-    id: '1',
-    author: { name: 'سارة المنصوري', address: 'GAGCT4NM5BYYRG3N...', verified: true },
-    text: 'أطلقت للتو مقالتي الجديدة عن مستقبل التمويل اللامركزي في العالم العربي 🚀 يمكنكم دعم المحتوى مباشرة عبر صندوق الدعم أدناه!',
-    timestamp: 'منذ 12 دقيقة',
-    likes: 24, replies: 8, recasts: 5,
-    miniApp: 'tip-jar',
-    miniAppData: { recipientName: 'سارة المنصوري', recipientAddress: 'GAGCT4NM5BYYRG3N...' },
-  },
-  {
-    id: '2',
-    author: { name: 'أحمد الخليفي', address: 'GBXYZ...DEF456', verified: true },
-    text: 'ما رأيكم: هل ستصبح العقود الذكية على Stellar أهم من Ethereum في المنطقة العربية؟ صوّتوا! 👇',
-    timestamp: 'منذ 34 دقيقة',
-    likes: 67, replies: 23, recasts: 12,
-    miniApp: 'poll',
-    miniAppData: {
-      question: 'هل ستتفوق Stellar على Ethereum في الشرق الأوسط؟',
-      options: [
-        { id: 'a', text: 'نعم، بسبب الرسوم المنخفضة', votes: 145 },
-        { id: 'b', text: 'لا، Ethereum أقوى', votes: 67 },
-        { id: 'c', text: 'سيتعايشان معاً', votes: 89 },
-        { id: 'd', text: 'لست متأكداً بعد', votes: 34 },
-      ],
-    },
-  },
-  {
-    id: 'quiz-1',
-    author: { name: 'عمر المختار', address: 'GXYZ1...TEST1', verified: true },
-    text: 'من يملك أسرع بديهة هنا؟ 🤓 مسابقة سريعة في أساسيات البلوكتشين وعقود Soroban. الفائز الأول في الـ Leaderboard سيربح 50 XLM!',
-    timestamp: 'منذ ساعتين',
-    likes: 312, replies: 84, recasts: 45,
-    miniApp: 'quiz',
-    miniAppData: {
-      title: 'تحدي Soroban للمطورين',
-      participants: 128,
-      questions: [
-        {
-          id: 'q1',
-          text: 'أي لغة برمجة تُستخدم لكتابة عقود Soroban الذكية؟',
-          options: [
-            { id: '1', text: 'Solidity', isCorrect: false },
-            { id: '2', text: 'Rust', isCorrect: true },
-            { id: '3', text: 'Go', isCorrect: false },
-            { id: '4', text: 'C++', isCorrect: false },
-          ]
-        },
-        {
-          id: 'q2',
-          text: 'ما هو زمن تأكيد المعاملة التقريبي على شبكة Stellar؟',
-          options: [
-            { id: '1', text: '12 ثانية', isCorrect: false },
-            { id: '2', text: '10 دقائق', isCorrect: false },
-            { id: '3', text: '3-5 ثوانٍ', isCorrect: true },
-            { id: '4', text: 'ساعة', isCorrect: false },
-          ]
-        }
-      ],
-    },
-  },
-  {
-    id: 'streak-1',
-    author: { name: 'فاطمة أحمد', address: 'GXYZ2...TEST2', verified: false },
-    text: 'بدأت تحدي القراءة اليومي على المنصة 📚🔥 الهدف: 30 يوماً متتالية من قراءة مقالات Web3. من ينضم إلي لنشكل مجتمعاً معرفياً؟ سجّلوا قراءتكم اليومية على السلسلة.',
-    timestamp: 'منذ 4 ساعات',
-    likes: 89, replies: 21, recasts: 12,
-    miniApp: 'streak',
-    miniAppData: {
-      challengeName: '#30DaysOfWeb3',
-      targetDays: 30,
-      participants: 543,
-    },
-  },
-  {
-    id: '3',
-    author: { name: 'نورة الدوسري', address: 'GCABC...GHI789', verified: false },
-    text: 'كتبت مقالاً حول تجربتي في بناء أول تطبيق لامركزي. يمكنكم سكّه كـ NFT مباشرة من هنا! المحتوى سيُحفظ إلى الأبد على بلوكشين Stellar ✨',
-    timestamp: 'منذ ساعة',
-    likes: 156, replies: 45, recasts: 28,
-    miniApp: 'nft-mint',
-    miniAppData: {
-      title: 'رحلتي في بناء أول dApp على Stellar',
-      previewText: 'بدأت رحلتي في عالم البلوكشين قبل عامين. لم أكن أعرف شيئاً عن العقود الذكية، لكن Soroban غيّر كل شيء...',
-      authorName: 'نورة الدوسري',
-    },
-  },
-  {
-    id: '4',
-    author: { name: 'خالد الراشد', address: 'GDEFG...JKL012', verified: true },
-    text: 'الميزة الأقوى في Nalax هي أن كل تفاعل حقيقي — الإكراميات تذهب مباشرة للكاتب بدون وسيط، والمحتوى مسجل على السلسلة. هذا هو مستقبل الإعلام! 🔗',
-    timestamp: 'منذ ساعتين',
-    likes: 89, replies: 15, recasts: 7,
-  },
-  {
-    id: '5',
-    author: { name: 'ليلى حسن', address: 'GHIJK...MNO345', verified: true },
-    text: 'سؤال للمطورين: هل جرّبتم بناء MiniApps على Nalax؟ الـ SDK بسيط جداً ويمكنك تضمين أي تطبيق تفاعلي داخل منشوراتك. الاحتمالات لا نهائية! 🧩',
-    timestamp: 'منذ 3 ساعات',
-    likes: 43, replies: 19, recasts: 11,
-  },
-];
-
-// ─── Cast Card Component ──────────────────────────────────────────────────────
-
-function CastCard({ cast }: { cast: Cast }) {
-  const [liked, setLiked] = useState(cast.liked || false);
-  const [likeCount, setLikeCount] = useState(cast.likes);
-
-  const handleLike = () => {
-    setLiked(!liked);
-    setLikeCount(prev => liked ? prev - 1 : prev + 1);
-  };
-
+function ArticleFeedCard({ article }: { article: any }) {
   return (
     <div className="glass-panel p-5 hover:border-primary/10 transition-all duration-300 group">
       {/* Author Header */}
@@ -153,93 +20,64 @@ function CastCard({ cast }: { cast: Cast }) {
         <div className="flex items-center gap-3">
           <div
             className="w-11 h-11 rounded-full shrink-0 relative ring-2 ring-[var(--color-border)] ring-offset-2 ring-offset-[var(--color-bg-base)]"
-            style={{ background: addressGradient(cast.author.address) }}
+            style={{ background: addressGradient(article.authorPublicKey) }}
           >
-            {cast.author.verified && (
-              <div className="absolute -bottom-0.5 -right-0.5 w-4.5 h-4.5 rounded-full bg-accent flex items-center justify-center border-2 border-[var(--color-bg-elevated)]">
-                <Shield className="w-2.5 h-2.5 text-black" />
-              </div>
-            )}
+            <div className="absolute -bottom-0.5 -right-0.5 w-4.5 h-4.5 rounded-full bg-accent flex items-center justify-center border-2 border-[var(--color-bg-elevated)]">
+              <Shield className="w-2.5 h-2.5 text-black" />
+            </div>
           </div>
           <div>
             <div className="flex items-center gap-1.5">
               <span className="text-[14px] font-semibold text-[var(--color-text-main)]">
-                {cast.author.name}
+                {article.authorName || formatAddress(article.authorPublicKey)}
               </span>
             </div>
-            <span className="text-[11px] text-[var(--color-text-muted)]">{cast.timestamp}</span>
+            <span className="text-[11px] text-[var(--color-text-muted)]">
+              {new Date(article.createdAt).toLocaleDateString('ar-SA', { month: 'short', day: 'numeric' })}
+            </span>
           </div>
         </div>
-        <button className="p-1.5 rounded-md text-[var(--color-text-muted)] hover:text-[var(--color-text-main)] hover:bg-[var(--color-surface)] transition-colors cursor-pointer opacity-0 group-hover:opacity-100">
-          <MoreHorizontal className="w-4 h-4" />
-        </button>
       </div>
 
-      {/* Cast Text */}
-      <p className="text-[15px] text-[var(--color-text-secondary)] leading-[1.7] mb-4">
-        {cast.text}
-      </p>
+      {/* Article Content */}
+      <Link to={`/article/${article.id}`} className="block mb-4">
+        <h3 className="text-[17px] font-serif mb-2 group-hover:text-primary transition-colors leading-tight">
+          {article.title}
+        </h3>
+        <p className="text-[14px] text-[var(--color-text-dim)] leading-[1.7] line-clamp-3">
+          {article.excerpt}
+        </p>
+      </Link>
 
-      {/* Embedded MiniApp */}
-      {cast.miniApp && (
-        <div className="mb-4">
-          {cast.miniApp === 'tip-jar' && (
-            <TipJarMiniApp
-              recipientName={cast.miniAppData.recipientName}
-              recipientAddress={cast.miniAppData.recipientAddress}
-            />
+      {/* Tip Jar */}
+      <div className="mb-4">
+        <TipJarMiniApp
+          recipientName={article.authorName || formatAddress(article.authorPublicKey)}
+          recipientAddress={article.authorPublicKey}
+          tokenId={article.tokenId}
+        />
+      </div>
+
+      {/* Stats Bar */}
+      <div className="flex items-center justify-between pt-3 border-t border-[var(--color-border)]">
+        <div className="flex items-center gap-4">
+          {article.tipCount > 0 && (
+            <span className="flex items-center gap-1.5 text-[12px] text-accent">
+              <Heart className="w-4 h-4" /> {article.tipCount}
+            </span>
           )}
-          {cast.miniApp === 'poll' && (
-            <PollMiniApp
-              question={cast.miniAppData.question}
-              options={cast.miniAppData.options}
-            />
-          )}
-          {cast.miniApp === 'nft-mint' && (
-            <NFTMintMiniApp
-              title={cast.miniAppData.title}
-              previewText={cast.miniAppData.previewText}
-              authorName={cast.miniAppData.authorName}
-            />
-          )}
-          {cast.miniApp === 'quiz' && (
-            <QuizMiniApp
-              title={cast.miniAppData.title}
-              questions={cast.miniAppData.questions}
-              participants={cast.miniAppData.participants}
-            />
-          )}
-          {cast.miniApp === 'streak' && (
-            <StreakMiniApp
-              challengeName={cast.miniAppData.challengeName}
-              targetDays={cast.miniAppData.targetDays}
-              participants={cast.miniAppData.participants}
-            />
+          {article.accessCount > 0 && (
+            <span className="flex items-center gap-1.5 text-[12px] text-[var(--color-text-muted)]">
+              <BookOpen className="w-4 h-4" /> {article.accessCount}
+            </span>
           )}
         </div>
-      )}
-
-      {/* Action Bar */}
-      <div className="flex items-center justify-between pt-3 border-t border-[var(--color-border)]">
-        {[
-          { icon: Heart, count: likeCount, active: liked, onClick: handleLike, activeColor: 'text-red-400' },
-          { icon: MessageCircle, count: cast.replies, onClick: () => {} },
-          { icon: Repeat2, count: cast.recasts, onClick: () => {} },
-          { icon: Share2, count: 0, onClick: () => {} },
-        ].map(({ icon: Icon, count, active, onClick, activeColor }, i) => (
-          <button
-            key={i}
-            onClick={onClick}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all duration-200 cursor-pointer ${
-              active
-                ? `${activeColor || 'text-primary'} bg-red-400/10`
-                : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] hover:bg-[var(--color-surface)]'
-            }`}
-          >
-            <Icon className={`w-4 h-4 ${active ? 'fill-current' : ''}`} />
-            {count > 0 && <span className="text-[12px]">{count}</span>}
-          </button>
-        ))}
+        <Link
+          to={`/article/${article.id}`}
+          className="text-[11px] font-mono uppercase tracking-wider text-[var(--color-text-dim)] hover:text-primary transition-colors"
+        >
+          اقرأ المقال →
+        </Link>
       </div>
     </div>
   );
@@ -250,17 +88,21 @@ function CastCard({ cast }: { cast: Cast }) {
 export function Feed() {
   const { t } = useTranslation();
   const { isConnected } = useWallet();
-  const [activeTab, setActiveTab] = useState<'for-you' | 'following' | 'miniapps'>('for-you');
+  const [articles, setArticles] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const tabs = [
-    { id: 'for-you', label: 'لك', icon: Sparkles },
-    { id: 'following', label: 'المتابَعون', icon: Users },
-    { id: 'miniapps', label: 'MiniApps', icon: Zap },
-  ];
-
-  const filteredCasts = activeTab === 'miniapps'
-    ? DEMO_CASTS.filter(c => c.miniApp)
-    : DEMO_CASTS;
+  useEffect(() => {
+    (async () => {
+      try {
+        const onChain = await fetchAllArticlesFromChain();
+        setArticles(onChain.sort((a: any, b: any) => b.createdAt - a.createdAt));
+      } catch (e) {
+        console.error('Failed to fetch feed:', e);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
 
   return (
     <div className="max-w-2xl mx-auto py-6 animate-fadeIn">
@@ -273,108 +115,37 @@ export function Feed() {
           <div>
             <h1 className="text-[28px] font-serif tracking-[-0.5px] leading-tight">الخلاصة</h1>
             <p className="text-[12px] text-[var(--color-text-dim)]">
-              منشورات المجتمع مع تطبيقات مصغرة تفاعلية
+              أحدث المقالات المنشورة على السلسلة
             </p>
           </div>
         </div>
       </div>
 
-      {/* Tab Bar */}
-      <div className="flex items-center gap-1 mb-6 p-1 bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)]">
-        {tabs.map(tab => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
-              className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-[13px] font-semibold transition-all duration-200 cursor-pointer ${
-                isActive
-                  ? 'bg-[var(--color-bg-elevated)] text-[var(--color-text-main)] shadow-sm border border-[var(--color-border)]'
-                  : 'text-[var(--color-text-dim)] hover:text-[var(--color-text-secondary)]'
-              }`}
-            >
-              <Icon className="w-4 h-4" />
-              {tab.label}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Compose Box */}
-      {isConnected && (
-        <div className="glass-panel p-4 mb-6">
-          <div className="flex items-start gap-3">
-            <div
-              className="w-10 h-10 rounded-full shrink-0"
-              style={{ background: 'linear-gradient(135deg, #6C3AFF 0%, #00E87B 100%)' }}
-            />
-            <div className="flex-1">
-              <textarea
-                placeholder="ماذا يدور في خاطرك؟"
-                className="w-full bg-transparent text-[15px] outline-none resize-none placeholder:text-[var(--color-text-muted)] leading-relaxed"
-                rows={2}
-              />
-              <div className="flex items-center justify-between pt-3 border-t border-[var(--color-border)]">
-                <div className="flex items-center gap-2">
-                  {[
-                    { icon: Image, tip: 'صورة' },
-                    { icon: Zap, tip: 'MiniApp' },
-                  ].map(({ icon: Icon, tip }) => (
-                    <button
-                      key={tip}
-                      className="p-2 rounded-lg text-[var(--color-text-dim)] hover:text-primary hover:bg-primary/5 transition-colors cursor-pointer"
-                      title={tip}
-                    >
-                      <Icon className="w-4 h-4" />
-                    </button>
-                  ))}
-                  <div className="h-5 w-px bg-[var(--color-border)]" />
-                  <span className="text-[10px] font-mono text-primary flex items-center gap-1">
-                    <Zap className="w-3 h-3" /> أضف MiniApp
-                  </span>
-                </div>
-                <button className="px-5 py-2 rounded-lg bg-primary text-white text-[13px] font-semibold hover:shadow-[0_0_20px_rgba(108,58,255,0.3)] transition-all cursor-pointer">
-                  نشر
-                </button>
-              </div>
-            </div>
+      {/* Feed */}
+      {loading ? (
+        <div className="glass-panel p-16 text-center">
+          <Loader2 className="w-8 h-8 text-primary animate-spin mx-auto mb-4" />
+          <h3 className="text-lg font-serif mb-2">جاري التحميل من Stellar...</h3>
+          <p className="text-[12px] text-[var(--color-text-dim)] font-mono">جلب المقالات من العقد الذكي</p>
+        </div>
+      ) : articles.length > 0 ? (
+        <div className="space-y-4">
+          {articles.map(article => (
+            <ArticleFeedCard key={article.id} article={article} />
+          ))}
+        </div>
+      ) : (
+        <div className="glass-panel p-16 text-center">
+          <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-white/[0.03] flex items-center justify-center">
+            <BookOpen className="w-6 h-6 text-[var(--color-text-muted)]" />
           </div>
+          <h3 className="text-lg font-serif mb-2">لا توجد مقالات بعد</h3>
+          <p className="text-[13px] text-[var(--color-text-dim)] mb-4">كن أول من ينشر على المنصة!</p>
+          <Link to="/write" className="text-primary hover:underline text-[13px]">
+            ابدأ الكتابة →
+          </Link>
         </div>
       )}
-
-      {/* Trending MiniApps Banner */}
-      {activeTab === 'for-you' && (
-        <div className="mb-6 p-4 rounded-xl bg-gradient-to-l from-primary/10 via-primary/5 to-accent/10 border border-primary/10">
-          <div className="flex items-center gap-2 mb-2">
-            <TrendingUp className="w-4 h-4 text-primary" />
-            <span className="text-[12px] font-semibold text-primary">التطبيقات المصغرة الأكثر استخداماً</span>
-          </div>
-          <div className="flex items-center gap-3">
-            {[
-              { name: 'صندوق الدعم', icon: '💰', uses: '2.4K' },
-              { name: 'استطلاع سريع', icon: '📊', uses: '1.8K' },
-              { name: 'سكّ سريع', icon: '💎', uses: '956' },
-            ].map(app => (
-              <div
-                key={app.name}
-                className="flex items-center gap-2 px-3 py-1.5 bg-[var(--color-bg-elevated)]/80 rounded-lg border border-[var(--color-border)] cursor-pointer hover:border-primary/20 transition-colors"
-              >
-                <span className="text-[14px]">{app.icon}</span>
-                <span className="text-[11px] font-medium text-[var(--color-text-secondary)]">{app.name}</span>
-                <span className="text-[9px] font-mono text-[var(--color-text-muted)]">{app.uses}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Cast Feed */}
-      <div className="space-y-4">
-        {filteredCasts.map(cast => (
-          <CastCard key={cast.id} cast={cast} />
-        ))}
-      </div>
     </div>
   );
 }
