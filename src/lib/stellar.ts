@@ -261,23 +261,47 @@ export async function fetchContentById(tokenId: number): Promise<any | null> {
 }
 
 /**
- * Fetch all articles from the contract, returning them as Article-shaped objects
+ * Fetch all articles from the contract, returning them as Article-shaped objects.
+ * Also resolves author names from their on-chain profiles.
  */
 export async function fetchAllArticlesFromChain(): Promise<any[]> {
   const ids = await fetchAllContentIds();
   if (ids.length === 0) return [];
   
+  // Cache author profiles to avoid redundant calls
+  const authorNameCache = new Map<string, string>();
+  
   const articles = await Promise.all(
     ids.map(async (tokenId) => {
       const content = await fetchContentById(tokenId);
       if (!content) return null;
+      
+      const authorAddr = String(content.author || '');
+      
+      // Resolve author name from cache or chain
+      let authorName: string | undefined;
+      if (authorNameCache.has(authorAddr)) {
+        authorName = authorNameCache.get(authorAddr);
+      } else {
+        try {
+          const profile = await fetchAuthorProfile(authorAddr);
+          if (profile?.name) {
+            authorName = String(profile.name);
+            authorNameCache.set(authorAddr, authorName);
+          }
+        } catch {
+          // Silently fail — leave authorName undefined
+        }
+      }
+      
       return {
         id: `onchain-${tokenId}`,
         tokenId: Number(content.token_id),
         title: String(content.title || ''),
         excerpt: String(content.excerpt || ''),
         content: '', // Will be loaded from IPFS on demand
-        authorPublicKey: String(content.author || ''),
+        authorPublicKey: authorAddr,
+        authorName,
         createdAt: Number(content.created_at) * 1000, // Convert unix seconds to ms
         contentHash: String(content.content_hash || ''), // This is the IPFS CID
         isTokenGated: Boolean(content.is_token_gated),
@@ -544,6 +568,13 @@ export async function fetchAuthorArticlesFromChain(publicKey: string): Promise<a
   const ids = await fetchAuthorContentIds(publicKey);
   if (ids.length === 0) return [];
 
+  // Resolve author name once
+  let authorName: string | undefined;
+  try {
+    const profile = await fetchAuthorProfile(publicKey);
+    if (profile?.name) authorName = String(profile.name);
+  } catch { /* ignore */ }
+
   const articles = await Promise.all(
     ids.map(async (tokenId) => {
       const content = await fetchContentById(tokenId);
@@ -555,6 +586,7 @@ export async function fetchAuthorArticlesFromChain(publicKey: string): Promise<a
         excerpt: String(content.excerpt || ''),
         content: '',
         authorPublicKey: String(content.author || ''),
+        authorName,
         createdAt: Number(content.created_at) * 1000,
         contentHash: String(content.content_hash || ''),
         isTokenGated: Boolean(content.is_token_gated),

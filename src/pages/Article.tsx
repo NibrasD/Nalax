@@ -8,7 +8,7 @@ import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Lock, FileText, ExternalLink, ShieldCheck, Coins, Heart, Copy, Check, Clock, Eye, Hash, Users, Loader2 } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import { purchaseAccess, tipAuthor, fetchContentById, checkAccess } from '../lib/stellar';
+import { purchaseAccess, tipAuthor, fetchContentById, checkAccess, fetchAuthorProfile } from '../lib/stellar';
 import { xlmToStroops } from '../lib/contract';
 import { fetchIPFSContent } from '../lib/ipfs';
 import { useTranslation } from 'react-i18next';
@@ -34,6 +34,7 @@ export function Article() {
   const [chainArticle, setChainArticle] = useState<ArticleType | null>(null);
   const [ipfsContent, setIpfsContent] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [authorDisplayName, setAuthorDisplayName] = useState<string | null>(null);
 
   // If not found locally, try fetching from chain
   useEffect(() => {
@@ -86,6 +87,28 @@ export function Article() {
   }, [id, localArticle]);
 
   const article = localArticle || chainArticle;
+
+  // Fetch author display name from on-chain profile
+  useEffect(() => {
+    if (!article?.authorPublicKey) return;
+    // If we already have a name from the article, use it
+    if (article.authorName) {
+      setAuthorDisplayName(article.authorName);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const profile = await fetchAuthorProfile(article.authorPublicKey);
+        if (!cancelled && profile?.name) {
+          setAuthorDisplayName(String(profile.name));
+        }
+      } catch (e) {
+        // Silently fail — will fall back to formatAddress
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [article?.authorPublicKey, article?.authorName]);
 
   useEffect(() => {
     if (!publicKey || !article?.tokenId || !article.isTokenGated) return;
@@ -216,7 +239,7 @@ export function Article() {
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full shrink-0" style={{ background: addressGradient(article.authorPublicKey) }} />
             <div>
-              <div className="text-[14px] font-medium">{article.authorName || formatAddress(article.authorPublicKey)}</div>
+              <div className="text-[14px] font-medium">{authorDisplayName || article.authorName || formatAddress(article.authorPublicKey)}</div>
               <div className="text-[10px] text-[var(--color-text-dim)] font-mono uppercase tracking-wider flex items-center gap-1.5">
                 <ShieldCheck className="w-3 h-3 text-accent" />
                 {t('article.on_chain_verified')}
@@ -300,13 +323,13 @@ export function Article() {
             {/* Web Monetization — Streaming Micropayments */}
             <WebMonetizationMiniApp
               authorPaymentPointer={generatePaymentPointer(article.authorPublicKey)}
-              authorName={article.authorName || formatAddress(article.authorPublicKey)}
+              authorName={authorDisplayName || article.authorName || formatAddress(article.authorPublicKey)}
               articleTitle={article.title}
             />
 
             {/* Cross-chain Tip Jar via InterLedger */}
             <TipJarMiniApp
-              recipientName={article.authorName || formatAddress(article.authorPublicKey)}
+              recipientName={authorDisplayName || article.authorName || formatAddress(article.authorPublicKey)}
               recipientAddress={article.authorPublicKey}
               tokenId={article.tokenId}
               onTipSuccess={(_txHash, amount) => {

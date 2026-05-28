@@ -6,35 +6,19 @@ import {
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useChannelStore } from '../store/useChannelStore';
+import { fetchAllContentIds, fetchAllArticlesFromChain } from '../lib/stellar';
 
 // ─── Live Ticker ─────────────────────────────────────────────────────────────
 
-const TICKER_ITEMS = [
-  { label: '⚡ مقال جديد سُكّ على السلسلة', val: 'منذ 2 دقيقة' },
-  { label: '💰 دعم بـ 12 XLM لكاتب', val: 'منذ 5 دقائق' },
-  { label: '📡 قناة Stellar Devs نشطة', val: '342 منشور' },
-  { label: '🎨 NFT جديد في قناة الفنانين', val: 'منذ 8 دقائق' },
-  { label: '🏆 مسابقة Soroban — 500 XLM جوائز', val: 'تنتهي قريباً' },
-];
-
 function LiveTicker() {
-  const [idx, setIdx] = useState(0);
-  useEffect(() => {
-    const t = setInterval(() => setIdx(p => (p + 1) % TICKER_ITEMS.length), 3000);
-    return () => clearInterval(t);
-  }, []);
-  const item = TICKER_ITEMS[idx];
   return (
     <div className="flex items-center gap-3 px-4 py-2 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] overflow-hidden w-fit">
       <span className="relative flex h-2 w-2">
         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--color-accent)] opacity-75" />
         <span className="relative inline-flex rounded-full h-2 w-2 bg-[var(--color-accent)]" />
       </span>
-      <span className="text-[11px] font-mono text-[var(--color-text-secondary)] whitespace-nowrap animate-fadeIn" key={idx}>
-        {item.label}
-      </span>
-      <span className="text-[9px] font-mono text-[var(--color-text-dim)] border-l border-[var(--color-border)] pl-3">
-        {item.val}
+      <span className="text-[11px] font-mono text-[var(--color-text-secondary)] whitespace-nowrap">
+        Stellar Testnet — Soroban Smart Contracts
       </span>
     </div>
   );
@@ -59,13 +43,7 @@ function Counter({ end, suffix = '' }: { end: number; suffix?: string }) {
 }
 
 // ─── Platform Stats ──────────────────────────────────────────────────────────
-
-const STATS = [
-  { label: 'مقال منشور',  end: 1240, suffix: '+', color: 'text-[var(--color-primary)]' },
-  { label: 'كاتب مسجّل', end: 380,  suffix: '+', color: 'text-[var(--color-accent)]' },
-  { label: 'XLM أُرسل للكتّاب', end: 28400, suffix: '+', color: 'text-[var(--color-rose)]' },
-  { label: 'قناة نشطة',  end: 6,    suffix: '',  color: 'text-[var(--color-amber)]' },
-];
+// Real stats are fetched from the contract in the component below
 
 // ─── Features ────────────────────────────────────────────────────────────────
 
@@ -124,15 +102,7 @@ const featureColor: Record<string, { bg: string; text: string; border: string; g
 
 
 // ─── Channel Preview Data ─────────────────────────────────────────────────────
-
-const CHANNEL_PREVIEWS = [
-  { id: 'stellar-dev',    icon: '⚡', name: 'Stellar Developers', members: 1240, posts: 342, color: 'from-primary/20 to-accent/10' },
-  { id: 'arabic-web3',   icon: '🌍', name: 'عالم Web3 العربي',   members: 3580, posts: 891, color: 'from-green-500/20 to-emerald-400/10' },
-  { id: 'content-creators', icon: '✍️', name: 'صانعو المحتوى',  members: 865,  posts: 210, color: 'from-purple-500/20 to-pink-400/10' },
-  { id: 'defi-mena',     icon: '💰', name: 'DeFi MENA',          members: 2100, posts: 567, color: 'from-yellow-500/20 to-orange-400/10' },
-  { id: 'nft-artists',   icon: '🎨', name: 'فنانو NFT',          members: 430,  posts: 128, color: 'from-rose-500/20 to-fuchsia-400/10' },
-  { id: 'stellar-news',  icon: '📡', name: 'أخبار Stellar',      members: 5200, posts: 1034, color: 'from-blue-500/20 to-cyan-400/10' },
-];
+// Uses real channel data from the store (injected in the component)
 
 // ─── How It Works ─────────────────────────────────────────────────────────────
 
@@ -142,37 +112,45 @@ const STEPS = [
   { n: '03', icon: Coins,     title: 'اكسب مباشرة',      desc: 'استلم XLM من القرّاء مباشرة لمحفظتك — بدون وسيط أو رسوم.', color: 'rose' },
 ];
 
-// ─── Social Proof ─────────────────────────────────────────────────────────────
-
-const TESTIMONIALS = [
-  {
-    name: 'سارة المنصوري',
-    role: 'كاتبة محتوى Web3',
-    text: 'جمعت 500 XLM من مقالة واحدة خلال أسبوع. لا وسيط، لا رسوم منصة. هذا هو المستقبل الحقيقي.',
-    stars: 5,
-    addr: 'GAGC...J7WJ',
-  },
-  {
-    name: 'أحمد الخليفي',
-    role: 'مطور Soroban',
-    text: 'بنيت مجتمع مطورين من 1200+ شخص عبر قناتي. التفاعل على السلسلة يعطي مصداقية لا توجد في أي منصة أخرى.',
-    stars: 5,
-    addr: 'GBXZ...F456',
-  },
-  {
-    name: 'نورة الدوسري',
-    role: 'فنانة رقمية',
-    text: 'أنا أول فنانة عربية تسك أعمالها على Stellar. المجتمع داعم بشكل استثنائي والتقنية سلسة جداً.',
-    stars: 5,
-    addr: 'GCAB...I789',
-  },
-];
+// ─── Social Proof (removed — no fake testimonials) ───────────────────────────
 
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export function Home() {
   const { channels } = useChannelStore();
+
+  // ─── Real on-chain stats ──────────────────────────────────────────────────
+  const [totalArticles, setTotalArticles] = useState(0);
+  const [totalAuthors, setTotalAuthors] = useState(0);
+  const [totalXlmRaised, setTotalXlmRaised] = useState(0);
+  const [statsLoaded, setStatsLoaded] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const articles = await fetchAllArticlesFromChain();
+        setTotalArticles(articles.length);
+        // Count unique authors
+        const uniqueAuthors = new Set(articles.map((a: any) => a.authorPublicKey));
+        setTotalAuthors(uniqueAuthors.size);
+        // Sum total raised
+        const raised = articles.reduce((sum: number, a: any) => sum + (a.totalRaised || 0), 0);
+        setTotalXlmRaised(Math.round(raised));
+        setStatsLoaded(true);
+      } catch (e) {
+        console.error('Failed to fetch on-chain stats:', e);
+        setStatsLoaded(true);
+      }
+    })();
+  }, []);
+
+  const STATS = [
+    { label: 'مقال منشور',       end: totalArticles,         suffix: '', color: 'text-[var(--color-primary)]' },
+    { label: 'كاتب مسجّل',      end: totalAuthors,          suffix: '', color: 'text-[var(--color-accent)]' },
+    { label: 'XLM أُرسل للكتّاب', end: totalXlmRaised,       suffix: '', color: 'text-[var(--color-rose)]' },
+    { label: 'قناة نشطة',        end: channels.length,       suffix: '', color: 'text-[var(--color-amber)]' },
+  ];
 
   return (
     <div className="flex flex-col">
@@ -347,10 +325,10 @@ export function Home() {
             {/* Channel stats */}
             <div className="grid grid-cols-2 gap-4">
               {[
-                { icon: Hash,  label: 'قنوات نشطة',    val: '6+',    color: 'text-primary', bg: 'bg-primary/10',  border: 'border-primary/20' },
-                { icon: Users, label: 'عضو في القنوات', val: '13K+',  color: 'text-accent',  bg: 'bg-accent/10',   border: 'border-accent/20' },
-                { icon: MessageCircle, label: 'منشور يومي', val: '200+', color: 'text-rose', bg: 'bg-rose/10',     border: 'border-rose/20' },
-                { icon: Heart, label: 'تفاعل أسبوعي',  val: '5K+',   color: 'text-amber',   bg: 'bg-amber/10',    border: 'border-amber/20' },
+                { icon: Hash,  label: 'قنوات نشطة',    val: String(channels.length),    color: 'text-primary', bg: 'bg-primary/10',  border: 'border-primary/20' },
+                { icon: Users, label: 'عضو في القنوات', val: String(channels.reduce((s, c) => s + (c.members?.length || 0), 0)),  color: 'text-accent',  bg: 'bg-accent/10',   border: 'border-accent/20' },
+                { icon: MessageCircle, label: 'منشور', val: String(channels.reduce((s, c) => s + (c.posts?.length || 0), 0)), color: 'text-rose', bg: 'bg-rose/10',     border: 'border-rose/20' },
+                { icon: Heart, label: 'مقال على السلسلة',  val: String(totalArticles),   color: 'text-amber',   bg: 'bg-amber/10',    border: 'border-amber/20' },
               ].map(({ icon: Icon, label, val, color, bg, border }) => (
                 <div key={label} className={`glass-panel p-5 border ${border} ${bg}/30 text-center`}>
                   <Icon className={`w-5 h-5 ${color} mx-auto mb-2`} />
@@ -363,29 +341,34 @@ export function Home() {
 
           {/* Channel Cards Grid */}
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 stagger-children">
-            {CHANNEL_PREVIEWS.map(({ id, icon, name, members, posts, color }) => (
-              <Link key={id} to={`/channels/${id}`}
+            {channels.slice(0, 6).map((ch) => (
+              <Link key={ch.id} to={`/channels/${ch.slug || ch.id}`}
                 className="channel-card-preview group p-5 flex items-center gap-4 cursor-pointer"
               >
-                <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${color} flex items-center justify-center text-2xl shrink-0 border border-white/5`}>
-                  {icon}
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary/20 to-accent/10 flex items-center justify-center text-2xl shrink-0 border border-white/5">
+                  {ch.icon || '📡'}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="font-semibold text-[14px] text-[var(--color-text-main)] group-hover:text-primary transition-colors truncate">
-                    {name}
+                    {ch.name}
                   </div>
                   <div className="flex items-center gap-3 mt-1">
                     <span className="text-[11px] font-mono text-[var(--color-text-dim)] flex items-center gap-1">
-                      <Users className="w-3 h-3" /> {members.toLocaleString()}
+                      <Users className="w-3 h-3" /> {ch.members?.length || 0}
                     </span>
                     <span className="text-[11px] font-mono text-[var(--color-text-dim)] flex items-center gap-1">
-                      <PenSquare className="w-3 h-3" /> {posts.toLocaleString()}
+                      <PenSquare className="w-3 h-3" /> {ch.posts?.length || 0}
                     </span>
                   </div>
                 </div>
                 <ChevronRight className="w-4 h-4 text-[var(--color-text-muted)] group-hover:text-primary group-hover:translate-x-1 transition-all" />
               </Link>
             ))}
+            {channels.length === 0 && (
+              <div className="col-span-full text-center py-8 text-[var(--color-text-dim)] text-sm">
+                لا توجد قنوات بعد — <Link to="/channels/create" className="text-primary hover:underline">أنشئ أول قناة</Link>
+              </div>
+            )}
           </div>
         </div>
       </section>
@@ -424,46 +407,6 @@ export function Home() {
           </div>
         </div>
       </section>
-
-      {/* ══════════════════════════════════════════════════════════════
-          SOCIAL PROOF
-      ══════════════════════════════════════════════════════════════ */}
-      <section className="py-24 px-6 relative overflow-hidden">
-        <div className="absolute inset-0 dot-pattern opacity-30 pointer-events-none" />
-        <div className="max-w-5xl mx-auto relative z-10">
-          <div className="text-center mb-14">
-            <span className="eyebrow justify-center">
-              <Star className="w-3.5 h-3.5" /> قالوا عنا
-            </span>
-            <h2 className="text-[40px] font-serif tracking-[-1.5px]">يثق بنا المبدعون</h2>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-5 stagger-children">
-            {TESTIMONIALS.map(({ name, role, text, stars, addr }) => (
-              <div key={name} className="glass-panel p-6 flex flex-col gap-4">
-                <div className="flex items-center gap-1">
-                  {Array.from({ length: stars }).map((_, i) => (
-                    <Star key={i} className="w-3.5 h-3.5 text-amber fill-amber" />
-                  ))}
-                </div>
-                <p className="text-[13px] text-[var(--color-text-secondary)] leading-[1.75] flex-grow">
-                  "{text}"
-                </p>
-                <div className="flex items-center gap-3 pt-3 border-t border-[var(--color-border)]">
-                  <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-[12px] font-bold text-white shrink-0">
-                    {name[0]}
-                  </div>
-                  <div>
-                    <div className="text-[13px] font-semibold">{name}</div>
-                    <div className="text-[10px] font-mono text-[var(--color-text-dim)]">{role} · {addr}</div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
 
       {/* ══════════════════════════════════════════════════════════════
           LIVE PLATFORM PREVIEW (NFT card mockup)
