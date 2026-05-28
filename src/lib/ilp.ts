@@ -10,8 +10,7 @@
  */
 
 import { TransactionBuilder, Networks, Asset, Operation, Memo } from '@stellar/stellar-sdk';
-import { signTransaction } from '@stellar/freighter-api';
-import { server, waitForTransaction } from './stellar';
+import { server, waitForTransaction, signTxXdr } from './stellar';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -405,12 +404,8 @@ export async function sendCrossChainTip(
       .setTimeout(30)
       .build();
 
-    // Sign with Freighter
-    const signResult = await signTransaction(transaction.toXDR(), {
-      network: 'TESTNET',
-      networkPassphrase: Networks.TESTNET,
-    });
-    const signedXdr = typeof signResult === 'string' ? signResult : (signResult as any).signedTxXdr;
+    // Sign via the active wallet (Quick Wallet locally, or Freighter)
+    const signedXdr = await signTxXdr(senderPublicKey, transaction.toXDR(), Networks.TESTNET);
 
     // Submit
     const response = await server.sendTransaction(
@@ -464,11 +459,8 @@ export async function sendDirectXLMTip(
       .setTimeout(30)
       .build();
 
-    const signResult = await signTransaction(transaction.toXDR(), {
-      network: 'TESTNET',
-      networkPassphrase: Networks.TESTNET,
-    });
-    const signedXdr = typeof signResult === 'string' ? signResult : (signResult as any).signedTxXdr;
+    // Sign via the active wallet (Quick Wallet locally, or Freighter)
+    const signedXdr = await signTxXdr(senderPublicKey, transaction.toXDR(), Networks.TESTNET);
 
     const response = await server.sendTransaction(
       TransactionBuilder.fromXDR(signedXdr, Networks.TESTNET) as any

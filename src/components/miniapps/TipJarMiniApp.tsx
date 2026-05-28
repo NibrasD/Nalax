@@ -33,8 +33,12 @@ interface TipJarMiniAppProps {
 }
 
 export function TipJarMiniApp({ recipientName, recipientAddress, recipientILPWallet }: TipJarMiniAppProps) {
-  const { isConnected, publicKey, refreshBalance } = useWallet();
+  const { isConnected, publicKey, provider, refreshBalance } = useWallet();
   const toast = useToast();
+
+  // Quick Wallet signs locally — no extension prompt, no extra confirmation step.
+  // This drives the loading toast copy and the helper text under the button.
+  const isQuickWallet = provider === 'quick-wallet';
 
   const [method, setMethod] = useState<PaymentMethod>('stellar');
   const [selectedAmount, setSelectedAmount] = useState(5);
@@ -75,7 +79,11 @@ export function TipJarMiniApp({ recipientName, recipientAddress, recipientILPWal
         return;
       }
       setSending(true);
-      const lid = toast.addToast({ type: 'loading', title: 'جاري الإرسال عبر Stellar...', message: 'في انتظار توقيع المحفظة' });
+      const lid = toast.addToast({
+        type: 'loading',
+        title: 'جاري الإرسال عبر Stellar...',
+        message: isQuickWallet ? 'توقيع محلى — بلا انتظار' : 'في انتظار توقيع المحفظة',
+      });
       try {
         const result = await sendDirectXLMTip(publicKey, recipientAddress, currentAmount.toString());
         setLastTxHash(result.txHash); setLastILPPaymentId(null);
@@ -208,6 +216,12 @@ export function TipJarMiniApp({ recipientName, recipientAddress, recipientILPWal
           <span className="inline-flex items-center gap-1.5 text-[9px] font-mono uppercase tracking-wider text-[var(--color-text-dim)] bg-[var(--color-surface)] px-2.5 py-1 rounded-full border border-[var(--color-border)]">
             <span className={`w-1.5 h-1.5 rounded-full ${method === 'stellar' ? 'bg-primary' : 'bg-accent'} animate-pulse`} />
             {method === 'stellar' ? 'Stellar Testnet' : 'ILP Testnet — Open Payments'}
+            {isQuickWallet && method === 'stellar' && (
+              <>
+                <span className="text-[var(--color-text-muted)]">·</span>
+                <span className="text-[var(--color-accent)]">⚡ توقيع فورى</span>
+              </>
+            )}
           </span>
         </div>
       </div>
