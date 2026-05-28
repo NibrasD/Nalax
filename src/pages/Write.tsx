@@ -6,7 +6,7 @@ import { useToast } from '../store/useToast';
 import { generateMockId, readingTime } from '../lib/utils';
 import { hashContent } from '../lib/contract';
 import { uploadToIPFS } from '../lib/ipfs';
-import { writeArticleToChain, mintContent, extractTokenIdFromResult, fetchContentById } from '../lib/stellar';
+import { writeArticleToChain, mintContent, extractTokenIdFromResult, fetchContentById, ensureAuthorRegistered } from '../lib/stellar';
 import { readSorobanContract } from '../lib/stellar';
 import { CONTRACT_METHODS } from '../lib/contract';
 import { MarkdownEditor } from '../components/MarkdownEditor';
@@ -48,9 +48,14 @@ export function Write() {
       await new Promise(r => setTimeout(r, 800));
 
       setPublishStep(1);
+      // Auto-register author on-chain if not already registered
+      await ensureAuthorRegistered(publicKey, title.split(' ')[0] || undefined);
       await new Promise(r => setTimeout(r, 500));
 
       setPublishStep(2);
+      await new Promise(r => setTimeout(r, 500));
+
+      setPublishStep(3);
       const accessPrice = isTokenGated ? BigInt(parseFloat(price) * 10_000_000) : BigInt(0);
       
       const result = await mintContent(
@@ -62,7 +67,7 @@ export function Write() {
         accessPrice
       );
       
-      setPublishStep(3);
+      setPublishStep(4);
       const txHash = result?.hash || `tx_${generateMockId()}`;
       setPublishTxHash(txHash);
 
@@ -108,7 +113,7 @@ export function Write() {
       };
 
       addArticle(newArticle);
-      setPublishStep(4);
+      setPublishStep(5);
 
       toast.addToast({
         type: 'success',
@@ -129,7 +134,7 @@ export function Write() {
 
   const handleModalClose = () => {
     setShowPublishModal(false);
-    if (newArticleId && publishStep >= 4) {
+    if (newArticleId && publishStep >= 5) {
       navigate(`/article/${newArticleId}`);
     }
   };

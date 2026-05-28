@@ -1,4 +1,4 @@
-import { CheckCircle, Loader2, FileText, Shield, Hash, UploadCloud } from 'lucide-react';
+import { CheckCircle, Loader2, FileText, Shield, Hash, UploadCloud, UserPlus } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 interface PublishModalProps {
@@ -18,6 +18,11 @@ export function PublishModal({ isOpen, currentStep, title, error, txHash, onClos
       label: t('publish_modal.steps.ipfs_label'),
       description: t('publish_modal.steps.ipfs_desc'),
       icon: <UploadCloud className="w-5 h-5" />,
+    },
+    {
+      label: t('publish_modal.steps.register_label'),
+      description: t('publish_modal.steps.register_desc'),
+      icon: <UserPlus className="w-5 h-5" />,
     },
     {
       label: t('publish_modal.steps.nft_label'),

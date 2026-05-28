@@ -270,6 +270,8 @@
     "steps": {
       "ipfs_label": "رفع إلى IPFS",
       "ipfs_desc": "تثبيت نص Markdown على التخزين اللامركزي عبر Pinata",
+      "register_label": "تسجيل المؤلف",
+      "register_desc": "التحقق من هوية الكاتب على العقد الذكي",
       "nft_label": "سك NFT",
       "nft_desc": "إنشاء NFT المحتوى على عقد Soroban الذكي",
       "sign_label": "توقيع المعاملة",

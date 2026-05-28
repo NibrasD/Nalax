@@ -453,6 +453,29 @@ export async function fetchAuthorProfile(publicKey: string): Promise<any | null>
 }
 
 /**
+ * Check if an author is registered on-chain. Returns true if registered, false otherwise.
+ */
+export async function isAuthorRegistered(publicKey: string): Promise<boolean> {
+  const profile = await fetchAuthorProfile(publicKey);
+  return profile !== null && profile !== undefined;
+}
+
+/**
+ * Ensure the author is registered on-chain. If not, auto-registers with a default profile.
+ * Returns true if registration was performed, false if already registered.
+ */
+export async function ensureAuthorRegistered(publicKey: string, name?: string, bio?: string): Promise<boolean> {
+  const registered = await isAuthorRegistered(publicKey);
+  if (registered) return false;
+
+  // Auto-register with provided name/bio or defaults
+  const authorName = name || publicKey.substring(0, 8) + '...';
+  const authorBio = bio || 'Nalax Creator';
+  await registerAuthor(publicKey, authorName, authorBio);
+  return true;
+}
+
+/**
  * Fetch all content IDs minted by a specific author from the contract.
  */
 export async function fetchAuthorContentIds(publicKey: string): Promise<number[]> {

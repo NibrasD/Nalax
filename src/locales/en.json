@@ -270,6 +270,8 @@
     "steps": {
       "ipfs_label": "Uploading to IPFS",
       "ipfs_desc": "Pinning markdown text to decentralized storage via Pinata",
+      "register_label": "Registering Author",
+      "register_desc": "Ensuring on-chain author identity exists",
       "nft_label": "Minting NFT",
       "nft_desc": "Creating Content NFT on the Soroban smart contract",
       "sign_label": "Signing Transaction",
