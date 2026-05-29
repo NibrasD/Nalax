@@ -122,7 +122,6 @@ export function Home() {
 
   // ─── Real on-chain stats ──────────────────────────────────────────────────
   const [totalArticles, setTotalArticles] = useState(0);
-  const [totalAuthors, setTotalAuthors] = useState(0);
   const [totalXlmRaised, setTotalXlmRaised] = useState(0);
   const [statsLoaded, setStatsLoaded] = useState(false);
 
@@ -131,9 +130,6 @@ export function Home() {
       try {
         const articles = await fetchAllArticlesFromChain();
         setTotalArticles(articles.length);
-        // Count unique authors
-        const uniqueAuthors = new Set(articles.map((a: any) => a.authorPublicKey));
-        setTotalAuthors(uniqueAuthors.size);
         // Sum total raised
         const raised = articles.reduce((sum: number, a: any) => sum + (a.totalRaised || 0), 0);
         setTotalXlmRaised(Math.round(raised));
@@ -146,8 +142,6 @@ export function Home() {
   }, []);
 
   const STATS = [
-    { label: 'مقال منشور',       end: totalArticles,         suffix: '', color: 'text-[var(--color-primary)]' },
-    { label: 'كاتب مسجّل',      end: totalAuthors,          suffix: '', color: 'text-[var(--color-accent)]' },
     { label: 'XLM أُرسل للكتّاب', end: totalXlmRaised,       suffix: '', color: 'text-[var(--color-rose)]' },
     { label: 'قناة نشطة',        end: channels.length,       suffix: '', color: 'text-[var(--color-amber)]' },
   ];
@@ -224,14 +218,14 @@ export function Home() {
           </div>
 
           {/* Stats Row */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 max-w-2xl mx-auto mt-4 rounded-2xl overflow-hidden"
+          <div className="grid grid-cols-2 max-w-md mx-auto mt-4 rounded-2xl overflow-hidden"
             style={{
               border: '1px solid color-mix(in srgb, var(--color-primary) 14%, transparent)',
               background: 'color-mix(in srgb, var(--color-bg-elevated) 85%, transparent)',
               backdropFilter: 'blur(20px)',
             }}>
             {STATS.map(({ label, end, suffix, color }, i) => (
-              <div key={i} className={`px-6 py-5 text-center ${i < 3 ? 'border-r border-[var(--color-border)]' : ''}`}>
+              <div key={i} className={`px-6 py-5 text-center ${i === 0 ? 'border-r border-[var(--color-border)]' : ''}`}>
                 <div className={`text-[28px] font-bold stat-number animate-countUp ${color}`} style={{ animationDelay: `${i * 0.15}s` }}>
                   <Counter end={end} suffix={suffix} />
                 </div>
