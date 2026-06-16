@@ -497,19 +497,89 @@ app.use((_req, res, next) => {
   next();
 });
 
+// ─── Rafiki Webhook Handler ──────────────────────────────────────────────────
+
+/**
+ * POST /api/ilp/webhook
+ * Receives payment events from the self-hosted Rafiki instance.
+ * Rafiki calls this endpoint when a payment is created, completed, or failed.
+ *
+ * Event types:
+ *   - incoming_payment.created
+ *   - incoming_payment.completed
+ *   - outgoing_payment.created
+ *   - outgoing_payment.completed
+ *   - outgoing_payment.failed
+ */
+app.post('/api/ilp/webhook', (req, res) => {
+  const event = req.body;
+  const eventType = event?.type || 'unknown';
+  const data = event?.data || {};
+
+  console.log(`[Rafiki Webhook] Event: ${eventType}`);
+
+  switch (eventType) {
+    case 'incoming_payment.completed':
+      console.log(`[Rafiki Webhook] ✅ Incoming payment completed:`, {
+        id: data.id,
+        walletAddress: data.walletAddress,
+        receivedAmount: data.receivedAmount,
+      });
+      // TODO: update article payment stats in your DB
+      break;
+
+    case 'outgoing_payment.completed':
+      console.log(`[Rafiki Webhook] ✅ Outgoing payment completed:`, {
+        id: data.id,
+        receiver: data.receiver,
+        sentAmount: data.sentAmount,
+      });
+      break;
+
+    case 'outgoing_payment.failed':
+      console.error(`[Rafiki Webhook] ❌ Outgoing payment failed:`, data);
+      break;
+
+    default:
+      console.log(`[Rafiki Webhook] Unhandled event type: ${eventType}`, data);
+  }
+
+  // Rafiki expects a 200 response
+  res.status(200).json({ received: true, type: eventType });
+});
+
+/**
+ * GET /api/ilp/config
+ * Returns the current ILP configuration (non-sensitive).
+ * Useful for debugging and verifying Rafiki instance connection.
+ */
+app.get('/api/ilp/config', (_req, res) => {
+  res.json({
+    walletAddress: WALLET_ADDRESS_URL || null,
+    authServer: AUTH_SERVER || null,
+    keyId: KEY_ID || null,
+    configured: !!(WALLET_ADDRESS_URL && PRIVATE_KEY_BASE64 && KEY_ID),
+    server: 'Nalax ILP Server',
+    version: '1.0.0',
+  });
+});
+
 // ─── Start Server ───────────────────────────────────────────────────────────
 
 app.listen(PORT, () => {
   console.log(`\n🌐 Nalax ILP Server running on http://localhost:${PORT}`);
   console.log(`   Open Payments API — InterLedger Protocol`);
   console.log(`   Wallet: ${WALLET_ADDRESS_URL || '⚠️  NOT CONFIGURED'}`);
+  console.log(`   Auth:   ${AUTH_SERVER || '⚠️  NOT CONFIGURED'}`);
   console.log(`   Key ID: ${KEY_ID || '⚠️  NOT CONFIGURED'}`);
   console.log(`\n   Endpoints:`);
   console.log(`   GET  /api/ilp/health`);
+  console.log(`   GET  /api/ilp/config`);
+  console.log(`   GET  /api/ilp/wallet-info`);
   console.log(`   POST /api/ilp/resolve-wallet`);
   console.log(`   POST /api/ilp/quote`);
   console.log(`   POST /api/ilp/pay`);
-  console.log(`   GET  /api/ilp/wallet-info\n`);
+  console.log(`   POST /api/ilp/webhook  ← Rafiki events\n`);
 });
 
 export default app;

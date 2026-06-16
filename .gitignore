@@ -4,7 +4,35 @@ dist/
 coverage/
 .DS_Store
 *.log
-.env*
+*.zip
+
+# Environment files — لا ترفع أبداً
+.env
+.env.*
 !.env.example
+rafiki-deploy/.env
+rafiki-deploy/.env.*
+!rafiki-deploy/.env.example
+
+# Keys & secrets
+*.pem
+*.key
+*.p8
+*.der
+*.pfx
+
+# OS
+Thumbs.db
+Desktop.ini
+
+# Editor
+.vscode/
+.idea/
+*.swp
+
+# Build artifacts
 target/
 package-lock.json
+
+# Rafiki deployment scripts
+rafiki-deploy/
