@@ -1,39 +1,40 @@
-# StellarScribe ✨
+# Nalax ✨ — Interledger & Web Monetization Platform
 
-**StellarScribe** is a premium, decentralized content publishing platform built on the **Stellar** utilizing **Soroban Smart Contracts**. It empowers creators to publish, tokenize, and monetize their long-form writing natively on Web3, ensuring they retain ownership of their content and revenue.
+**Nalax** is a next-generation decentralized content publishing platform built for the **Interledger Protocol (ILP)** and **Web Monetization**. It empowers creators to publish censorship-resistant content on IPFS and monetize their work natively on the web without relying on centralized payment gateways or ads.
+
+This project was developed in alignment with the **Interledger Foundation (ILF) Fellowship** requirements, showcasing a complete integration of the Open Payments API and the W3C Web Monetization specification.
 
 ---
 
 ## 🌟 Key Features
 
-1. **On-Chain Identity & Authorship**
-   * Link your Freighter wallet to create a permanent, verifiable author profile stored directly on the Soroban smart contract.
-   * Completely tamper-proof track record of publications, earnings, and engagement.
+1. **W3C Web Monetization Native**
+   * Nalax automatically injects `<link rel="monetization">` payment pointers for authors into their articles.
+   * Readers using Web Monetization extensions (like coil or browser-native support) automatically stream micropayments to the author while reading.
 
-2. **Content NFTs & Hashing**
-   * Write seamlessly in our distraction-free, split-pane Markdown editor.
-   * On publish, the content is securely hashed using SHA-256. This hash is embedded into a newly minted **Content NFT** on the Stellar ledger, proving authenticity.
+2. **Open Payments API Integration**
+   * Fully functional Open Payments API backend handling `incoming-payment` and `outgoing-payment` flows.
+   * Manual tipping mechanism allowing readers to send customized amounts via GNAP grants and HTTP Message Signatures (RFC 9421 with Ed25519 keys).
 
-3. **Token-Gating & Monetization**
-   * Set custom prices (in XLM) for premium articles. 
-   * Content remains locked at the smart contract level until a reader purchases access, moving funds directly from reader to writer with zero platform fees.
+3. **Self-Hosted Rafiki Connector (Optional)**
+   * Built to connect directly with the `rafiki.money` testnet or route through a self-hosted Rafiki ILP instance to act as a true peer on the Interledger network.
 
-4. **Direct Tipping Mechanism**
-   * Readers can easily send direct tips in XLM to authors they love with a click of a button.
+4. **IPFS Decentralized Storage**
+   * Content is stored immutably on IPFS via the Pinata API.
+   * No central database controls your content; you own your words.
 
-5. **Premium User Experience**
-   * A meticulously crafted, responsive dark theme built with TailwindCSS v4.
-   * Instant toast notifications, smooth micro-animations, and a flawless wallet integration flow using the newest `@stellar/freighter-api` (v6+).
+5. **Cross-Chain Tipping (Stellar DEX)**
+   * Support for tipping authors using Stellar path payments, automatically routing XLM or other assets to the author's preferred ILP or Stellar wallet.
 
 ---
 
 ## 🛠️ Technology Stack
 
-* **Smart Contracts**: Rust (Soroban SDK v22)
-* **Frontend Framework**: React 19, TypeScript, Vite
-* **Styling**: Tailwind CSS v4, Lucide React (Icons)
-* **State Management**: Zustand
-* **Wallet Integration**: `@stellar/freighter-api`, `@stellar/stellar-sdk`
+* **Frontend**: React 19, TypeScript, Vite, Tailwind CSS v4, Zustand
+* **ILP Server**: Node.js, Express, Open Payments SDK
+* **Storage**: IPFS (Pinata)
+* **Signatures**: `@interledger/http-signature-utils` (Ed25519)
+* **Blockchain**: `@stellar/stellar-sdk`
 
 ---
 
@@ -41,27 +42,47 @@
 
 ### 1. Install Dependencies
 ```bash
-npm install
+npm install --legacy-peer-deps
 ```
 
-### 2. Run the Web App
+### 2. Environment Variables
+Copy the example environment file:
+```bash
+cp .env.example .env
+```
+Fill in your Pinata JWT, Gemini API key, and your ILP Wallet / Auth Server configurations.
+
+### 3. Generate Ed25519 Keys (For Open Payments)
+If you are running the ILP backend, you need keys to sign requests:
+```bash
+npx tsx server/generate-keys.ts
+```
+Add the generated `PRIVATE_KEY_BASE64` to your `.env` file and upload the Public Key to your Rafiki Admin UI.
+
+### 4. Run the Full Stack
+Start both the Vite frontend and the Express ILP server concurrently:
 ```bash
 npm run dev
 ```
-
-### 3. Build the Soroban Contract
-Ensure you have Rust and the `stellar-cli` installed.
-```bash
-cd contracts/stellarscribe
-cargo test
-cargo build --target wasm32-unknown-unknown --release
-```
+* Frontend runs on `http://localhost:5173`
+* ILP Backend runs on `http://localhost:3001`
 
 ---
 
-## 🌐 Deployment (Render)
+## 🌐 Deployment Architecture
 
-This project includes a `render.yaml` file for instant, reproducible deployments on [Render.com](https://render.com) as a Static Web Site serving the `dist` folder natively.
+Nalax uses a split-stack deployment for optimal performance and compatibility:
+
+1. **Frontend (Static SPA)**
+   * Built via `npm run build`.
+   * The `dist` folder is hosted on Namecheap shared hosting via standard FTP, configured with an `.htaccess` file for React Router SPA fallbacks.
+
+2. **ILP Backend Server**
+   * The Express backend (`server/ilp.ts`) handling Open Payments GNAP flows and HTTP signatures is deployed on Render as a persistent Node.js web service.
+
+3. **Rafiki Instance (Optional)**
+   * A full Docker Compose configuration for deploying a self-hosted Rafiki node (Backend, Auth, Admin UI) is available. (Not tracked in git for security reasons).
 
 ---
-*Built for the Stellar Ecosystem.*
+
+*Built for the Interledger Foundation (ILF) Fellowship.*
